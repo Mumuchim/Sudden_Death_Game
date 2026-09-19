@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sudden Death</title>
+<meta name="description" content="Sudden Death — a story game by mumuchxm.">
+<meta name="theme-color" content="#06070c">
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🕯</text></svg>">
+</head>
+<body>
+
+<canvas id="motes" aria-hidden="true"></canvas>
+<div id="vignette" aria-hidden="true"></div>
+
+<section id="title" class="screen active">
+  <div class="title-inner">
+    <div class="crest" aria-hidden="true">
+      <svg viewBox="0 0 120 120" width="120" height="120">
+        <g fill="none" stroke="currentColor" stroke-width="1.4">
+          <path d="M60 14 C36 14 24 34 24 56 c0 24 14 44 36 50 22-6 36-26 36-50 0-22-12-42-36-42z"/>
+          <path d="M60 22 C42 22 32 38 32 56 c0 20 11 36 28 42 17-6 28-22 28-42 0-18-10-34-28-34z" opacity=".45"/>
+          <path d="M44 52 l8-10 8 10 8-10 8 10" opacity=".8"/>
+          <path d="M60 70 v18" opacity=".6"/>
+        </g>
+      </svg>
+    </div>
+    <h1>Sudden<span>Death</span></h1>
+    <p class="byline">by mumuchxm</p>
+    <div class="title-menu">
+      <button class="menu-btn" id="btn-continue" hidden></button>
+      <button class="menu-btn" id="btn-new">Begin</button>
+      <button class="menu-btn quiet" id="btn-journal">Endings found</button>
+      <button class="menu-btn quiet" id="btn-help">How to play</button>
+    </div>
+    <p class="warn">Contains stalking, obsession, suicide and violence between teenagers.</p>
+  </div>
+</section>
+
+<section id="name" class="screen">
+  <div class="name-inner">
+    <p class="prompt-line">The register is open. Someone has to write something.</p>
+    <label for="name-field" class="sr-only">Your name</label>
+    <input id="name-field" maxlength="16" autocomplete="off" spellcheck="false" placeholder="your name">
+    <p class="name-hint" id="name-hint">The story says it out loud. It needs one.</p>
+    <button class="menu-btn" id="name-go" disabled>Write it down</button>
+  </div>
+</section>
+
+<section id="story" class="screen">
+  <header id="hud">
+    <div class="hud-left">
+      <div class="meter" id="ember-meter" title="Ember"></div>
+      <div class="breath-wrap" id="breath-wrap" hidden>
+        <div class="breath-bar"><i id="breath-fill"></i></div>
+        <span class="breath-label" id="breath-num">0</span>
+      </div>
+    </div>
+    <div class="hud-right">
+      <span class="shards" id="shard-count" title="Echoes"></span>
+      <button class="hud-btn" id="btn-bag" title="Bag (I)">Bag</button>
+      <button class="hud-btn" id="btn-bonds" title="Bonds (B)">Bonds</button>
+      <button class="hud-btn" id="btn-menu" title="Menu (Esc)">Menu</button>
+    </div>
+  </header>
+  <main id="stage">
+    <div id="portrait" class="portrait" aria-hidden="true"></div>
+    <p id="chapter" class="chapter"></p>
+    <div id="prose" class="prose"></div>
+    <div id="choices" class="choices"></div>
+  </main>
+</section>
+
+<section id="combat" class="screen">
+  <header id="hud2">
+    <div class="hud-left">
+      <div class="meter" id="ember-meter2" title="Ember"></div>
+      <div class="breath-wrap">
+        <div class="breath-bar"><i id="breath-fill2"></i></div>
+        <span class="breath-label" id="breath-num2">0</span>
+      </div>
+    </div>
+    <div class="hud-right">
+      <span class="clarity" id="clarity-pip" hidden>clear</span>
+      <span class="shards" id="shard-count2"></span>
+      <button class="hud-btn" id="btn-bag2">Bag</button>
+    </div>
+  </header>
+  <main id="arena">
+    <p class="foe-name" id="foe-name"></p>
+    <div class="poise" id="poise"></div>
+
+    <div class="glimpse" id="glimpse" data-state="idle" aria-hidden="true"></div>
+
+    <div class="timer-wrap" id="timer-wrap" hidden>
+      <i id="timer-fill"></i>
+    </div>
+
+    <div id="fight-log" class="prose fight"></div>
+
+    <div class="verbs" id="verbs">
+      <button class="verb" data-v="strike"><b>Strike</b><small>hurts it twice over, opens you</small></button>
+      <button class="verb" data-v="guard"><b>Guard</b><small>always blocks; a wrong guard costs breath</small></button>
+      <button class="verb" data-v="slip"><b>Slip</b><small>dodges, returns breath</small></button>
+      <button class="verb" data-v="focus"><b>Focus</b><small>heals one ember, costs breath</small></button>
+    </div>
+    <div class="fight-extra">
+      <button class="hud-btn" id="btn-echo-fight" hidden>Spend an Echo</button>
+      <button class="hud-btn" id="btn-continue-fight" hidden>Continue</button>
+    </div>
+  </main>
+</section>
+
+<section id="ending" class="screen">
+  <div class="ending-inner">
+    <p class="ending-kind" id="ending-kind"></p>
+    <h2 id="ending-title"></h2>
+    <div class="prose" id="ending-text"></div>
+    <div class="choices" id="ending-choices"></div>
+  </div>
+</section>
+
+<div id="overlay" class="overlay" hidden>
+  <div class="panel" role="dialog" aria-modal="true">
+    <button class="x" id="overlay-x" aria-label="Close">close</button>
+    <h3 id="overlay-title"></h3>
+    <div id="overlay-body"></div>
+  </div>
+</div>
+
+<script src="game.js"></script>
+</body>
+</html>

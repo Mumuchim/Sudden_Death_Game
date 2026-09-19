@@ -1,0 +1,284 @@
+/* Sudden Death — mumuchxm
+   Palette: void black, bone, lumafly blue, infection gold, ember. */
+
+:root{
+  --void:#06070c;
+  --deep:#0b0f1a;
+  --stone:#141a28;
+  --bone:#e9e6dc;
+  --ash:#8d93a4;
+  --luma:#79c8db;
+  --gold:#e0b45c;
+  --ember:#d7683a;
+  --blood:#8e2f2f;
+  --line:rgba(233,230,220,.14);
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+  --ui: "Optima", "Gill Sans", "Trebuchet MS", Candara, sans-serif;
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; background:var(--void); color:var(--bone);
+  font-family:var(--serif); font-size:18px; line-height:1.72;
+  -webkit-font-smoothing:antialiased; overflow:hidden;
+}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+#motes{position:fixed;inset:0;z-index:0;pointer-events:none}
+#vignette{
+  position:fixed;inset:0;z-index:1;pointer-events:none;
+  background:radial-gradient(120% 90% at 50% 40%, transparent 35%, rgba(3,4,8,.82) 100%);
+}
+#flash{position:fixed;inset:0;z-index:60;pointer-events:none;opacity:0;background:#fff;transition:opacity .28s}
+#flash.hit{background:var(--blood);opacity:.28;transition:opacity .04s}
+#flash.gold{background:var(--gold);opacity:.22}
+
+.screen{display:none;position:fixed;inset:0;z-index:2;overflow-y:auto;overscroll-behavior:contain}
+.screen.active{display:block}
+
+/* ---------- title ---------- */
+#title .title-inner{
+  min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:48px 24px; text-align:center;
+}
+.crest{color:var(--ash);opacity:.55;margin-bottom:6px}
+.crest svg{filter:drop-shadow(0 0 14px rgba(121,200,219,.18))}
+#title h1{
+  font-family:var(--serif); font-weight:400; font-size:clamp(46px,11vw,86px);
+  line-height:.94; letter-spacing:.06em; margin:8px 0 0; text-transform:lowercase;
+  text-shadow:0 0 26px rgba(121,200,219,.16);
+}
+#title h1 span{display:block;color:var(--ash);letter-spacing:.24em;font-size:.52em;margin-top:14px}
+.byline{color:var(--ash);font-family:var(--ui);letter-spacing:.2em;font-size:12px;margin:22px 0 34px;opacity:.8}
+.title-menu{display:flex;flex-direction:column;gap:10px;width:min(320px,100%)}
+.warn{color:#5d6272;font-family:var(--ui);font-size:11.5px;letter-spacing:.06em;margin-top:38px;max-width:32ch}
+
+.menu-btn{
+  appearance:none;background:transparent;color:var(--bone);border:1px solid var(--line);
+  font-family:var(--ui);font-size:14px;letter-spacing:.14em;padding:13px 18px;cursor:pointer;
+  transition:border-color .2s,color .2s,background .2s;
+}
+.menu-btn:hover,.menu-btn:focus-visible{border-color:var(--luma);color:var(--luma);background:rgba(121,200,219,.05)}
+.menu-btn.quiet{border-color:transparent;color:var(--ash);font-size:12.5px;padding:9px}
+.menu-btn.quiet:hover{color:var(--bone)}
+:focus-visible{outline:1px solid var(--luma);outline-offset:3px}
+
+/* ---------- name ---------- */
+#name .name-inner{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;padding:24px;text-align:center}
+.prompt-line{color:var(--ash);max-width:34ch}
+#name-field{
+  background:transparent;border:none;border-bottom:1px solid var(--line);color:var(--bone);
+  font-family:var(--serif);font-size:26px;text-align:center;padding:8px 4px;width:min(300px,80vw);
+}
+#name-field:focus{outline:none;border-bottom-color:var(--luma)}
+
+/* ---------- hud ---------- */
+#hud,#hud2{
+  position:sticky;top:0;z-index:5;display:flex;justify-content:space-between;align-items:center;
+  gap:12px;padding:10px 18px 14px;background:linear-gradient(var(--void) 66%,transparent);
+}
+.hud-left,.hud-right{display:flex;align-items:center;gap:10px}
+.meter{display:flex;gap:6px}
+.pip{width:20px;height:25px;display:block;background:var(--bone);
+  clip-path:polygon(50% 0,92% 22%,86% 78%,50% 100%,14% 78%,8% 22%);
+  transition:background .2s;
+}
+.pip.empty{background:rgba(233,230,220,.10)}
+.pip.scar{background:rgba(142,47,47,.20)}
+.breath-wrap{display:flex;align-items:center;gap:7px}
+.breath-bar{width:140px;height:6px;background:rgba(233,230,220,.12);position:relative}
+.breath-bar i{position:absolute;inset:0 auto 0 0;background:var(--luma);width:0%;transition:width .25s}
+.breath-label{font-family:var(--ui);font-size:12.5px;color:var(--ash);letter-spacing:.1em;min-width:1.4em}
+.shards{font-family:var(--ui);font-size:13px;color:var(--luma);letter-spacing:.22em;opacity:.85}
+.clarity{font-family:var(--ui);font-size:11px;letter-spacing:.24em;color:var(--gold);opacity:.9}
+.hud-btn{
+  background:transparent;border:1px solid var(--line);color:var(--ash);font-family:var(--ui);
+  font-size:11.5px;letter-spacing:.14em;padding:6px 11px;cursor:pointer;transition:.2s;
+}
+.hud-btn:hover{color:var(--bone);border-color:var(--luma)}
+
+/* ---------- stage ---------- */
+#stage,#arena,.ending-inner{
+  max-width:640px;margin:0 auto;padding:6px 24px 72px;
+}
+.chapter{
+  font-family:var(--ui);font-size:11px;letter-spacing:.3em;color:var(--ash);
+  margin:2px 0 14px;opacity:.7;
+}
+.prose{font-size:19px;line-height:1.72;white-space:pre-wrap}
+.prose p{margin:0 0 1.15em}
+/* prose is prose. nothing in the text is coloured. */
+.cursor{display:inline-block;width:.5ch;color:var(--luma);animation:blink 1s steps(2) infinite}
+@keyframes blink{50%{opacity:0}}
+
+.choices{margin-top:20px;display:flex;flex-direction:column;gap:1px}
+.choice{
+  position:relative;display:block;width:100%;text-align:left;background:transparent;border:none;
+  color:var(--bone);font-family:var(--serif);font-size:17.5px;line-height:1.5;
+  padding:12px 12px 12px 26px;cursor:pointer;transition:color .18s,background .18s;
+}
+.choice::before{
+  content:"";position:absolute;left:6px;top:14px;bottom:14px;width:1px;background:var(--line);transition:.18s;
+}
+.choice:hover,.choice:focus-visible{color:var(--luma);background:rgba(121,200,219,.04)}
+.choice:hover::before,.choice:focus-visible::before{background:var(--luma);top:8px;bottom:8px}
+.choice .key{color:var(--ash);font-family:var(--ui);font-size:11px;margin-right:9px;opacity:.55}
+.choice .peek{display:block;color:var(--ash);font-size:14px;font-style:italic;opacity:.9;margin-top:4px}
+.choice.cont{color:var(--ash);font-family:var(--ui);font-size:13px;letter-spacing:.18em}
+.choice.cont:hover{color:var(--luma)}
+
+/* ---------- combat ---------- */
+.foe-name{font-family:var(--ui);letter-spacing:.24em;font-size:13px;color:var(--ash);margin:10px 0 8px}
+.poise{display:flex;gap:4px;margin-bottom:14px;flex-wrap:wrap}
+.poise i{width:16px;height:4px;background:var(--ember);opacity:.9;transition:background .2s}
+.poise i.gone{background:rgba(233,230,220,.12)}
+.prose.fight{min-height:5.2em;font-size:18.5px}
+.verbs{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:14px}
+.verb{
+  background:transparent;border:1px solid var(--line);color:var(--bone);cursor:pointer;
+  padding:10px 12px;text-align:left;font-family:var(--serif);transition:.18s;
+}
+.verb b{display:block;font-weight:400;font-size:18px;letter-spacing:.04em}
+.verb small{display:block;font-family:var(--ui);font-size:10.5px;color:var(--ash);letter-spacing:.06em;margin-top:3px}
+.verb:hover:not(:disabled){border-color:var(--luma);background:rgba(121,200,219,.05)}
+.verb:disabled{opacity:.3;cursor:default}
+.fight-extra{display:flex;gap:10px;margin-top:12px;min-height:30px}
+.tell,.good,.bad,.clear-line{color:var(--bone)}
+
+/* ---------- ending ---------- */
+.ending-inner{min-height:100%;display:flex;flex-direction:column;justify-content:center;padding-top:48px}
+.ending-kind{font-family:var(--ui);font-size:11px;letter-spacing:.3em;color:var(--ash)}
+#ending-title{font-family:var(--serif);font-weight:400;font-size:clamp(32px,8vw,52px);letter-spacing:.04em;margin:6px 0 22px}
+#ending.win #ending-title{color:var(--gold)}
+#ending.secret #ending-title{color:var(--luma)}
+#ending.joke #ending-title{color:#9fb87f}
+
+/* ---------- overlay ---------- */
+[hidden]{display:none!important}
+.overlay{position:fixed;inset:0;z-index:40;background:rgba(4,5,10,.86);display:flex;align-items:center;justify-content:center;padding:20px}
+.panel{
+  background:var(--deep);border:1px solid var(--line);max-width:560px;width:100%;max-height:82vh;
+  overflow-y:auto;padding:28px 26px 32px;position:relative;
+}
+.panel h3{font-weight:400;font-size:20px;letter-spacing:.14em;margin:0 0 18px;color:var(--bone)}
+.panel .x{position:absolute;top:14px;right:16px;background:none;border:none;color:var(--ash);font-family:var(--ui);font-size:11px;letter-spacing:.16em;cursor:pointer}
+.panel .x:hover{color:var(--luma)}
+.row{border-top:1px solid var(--line);padding:13px 0}
+.row:first-of-type{border-top:none}
+.row h4{margin:0 0 4px;font-weight:400;font-size:16.5px;letter-spacing:.03em}
+.row p{margin:0;color:var(--ash);font-size:14.5px;line-height:1.6}
+.row .use{background:none;border:1px solid var(--line);color:var(--bone);font-family:var(--ui);font-size:11px;letter-spacing:.14em;padding:5px 12px;margin-top:9px;cursor:pointer}
+.row .use:hover{border-color:var(--luma);color:var(--luma)}
+.row.locked h4{color:#4c5162}
+.row.locked p{color:#3d4150}
+.bar{height:2px;background:rgba(233,230,220,.1);margin-top:7px}
+.bar i{display:block;height:2px;background:var(--luma)}
+.tagline{color:var(--gold);font-size:13px;font-style:italic}
+.help p{color:var(--ash);font-size:15px;line-height:1.65}
+.help b{color:var(--bone);font-weight:400}
+
+@media (max-width:520px){
+  body{font-size:17px}
+  .prose{font-size:17.5px}
+  .verbs{grid-template-columns:1fr}
+  #stage,#arena,.ending-inner{padding:14px 18px 120px}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+}
+
+/* ---------- glimpse: the shape the thing in front of you is making ---------- */
+.glimpse{width:100%;max-width:190px;margin:0 auto 8px;color:var(--bone)}
+.glimpse svg{width:100%;height:auto;display:block;overflow:visible}
+.glimpse .mask{transform-origin:80px 62px;transition:transform .32s cubic-bezier(.2,.8,.3,1),opacity .32s}
+.glimpse .shell{fill:rgba(233,230,220,.06);stroke:currentColor;stroke-width:1.5}
+.glimpse .horns{fill:rgba(233,230,220,.05);stroke:currentColor;stroke-width:1.4;stroke-linejoin:round}
+.glimpse .eyes{fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round}
+.glimpse .eyes{stroke-width:2.6;opacity:.9}
+.glimpse .crack{fill:none;stroke:var(--ember);stroke-width:1.2;opacity:0;transition:opacity .3s}
+.glimpse .aura{fill:none;stroke:var(--luma);stroke-width:1;opacity:.12;transform-origin:80px 58px;transition:opacity .3s,transform .3s,stroke .3s}
+.glimpse .shadow ellipse{fill:rgba(0,0,0,.55);transition:transform .3s}
+
+.glimpse[data-state="idle"] .mask{animation:float 5s ease-in-out infinite}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+
+/* winding up something heavy — lean back, swell, go warm */
+.glimpse[data-state="charge"] .mask{transform:translateY(-8px) rotate(-9deg) scale(1.04);animation:shudder .18s linear infinite}
+.glimpse[data-state="charge"] .aura{opacity:.5;stroke:var(--ember);transform:scale(1.16)}
+.glimpse[data-state="charge"] .eyes{stroke:var(--ember)}
+@keyframes shudder{0%,100%{translate:0 0}50%{translate:1.5px 0}}
+
+/* coming in fast and close — snap forward, huge */
+.glimpse[data-state="lunge"] .mask{transform:translateY(8px) scale(1.3);transition-duration:.12s}
+.glimpse[data-state="lunge"] .aura{opacity:.42;stroke:var(--bone);transform:scale(.7)}
+.glimpse[data-state="lunge"] .shadow ellipse{transform:scaleX(1.25)}
+
+/* open — slumped, dim, cracked */
+.glimpse[data-state="open"] .mask{transform:translateY(6px) rotate(13deg) scale(.96);opacity:.65}
+.glimpse[data-state="open"] .crack{opacity:.95}
+.glimpse[data-state="open"] .aura{opacity:.05}
+.glimpse[data-state="open"] .eyes{opacity:.15}
+
+/* withdrawn — small, far, waiting */
+.glimpse[data-state="still"] .mask{transform:translateY(-3px) scale(.74);opacity:.45}
+.glimpse[data-state="still"] .aura{opacity:.22;transform:scale(1.3);stroke:var(--ash)}
+.glimpse[data-state="still"] .shadow ellipse{transform:scaleX(.7)}
+
+/* it landed one on you */
+.glimpse[data-state="hit"] .mask{transform:scale(1.14);animation:jolt .32s}
+.glimpse[data-state="hit"] .aura{opacity:.6;stroke:var(--blood);transform:scale(1.35)}
+.glimpse[data-state="hit"] .eyes{stroke:var(--blood)}
+@keyframes jolt{0%{translate:-8px 0}25%{translate:7px 0}50%{translate:-4px 0}75%{translate:3px 0}100%{translate:0 0}}
+
+/* you landed one on it */
+.glimpse[data-state="recoil"] .mask{transform:translateY(-6px) rotate(6deg) scale(.94);opacity:.8}
+.glimpse[data-state="recoil"] .crack{opacity:.5}
+
+/* finished */
+.glimpse[data-state="down"] .mask{transform:translateY(26px) rotate(26deg) scale(.8);opacity:.22}
+.glimpse[data-state="down"] .aura{opacity:0}
+.glimpse[data-state="down"] .shadow ellipse{transform:scaleX(.6)}
+
+/* ---------- the clock ---------- */
+.timer-wrap{height:5px;background:rgba(233,230,220,.1);margin:0 0 14px;position:relative;overflow:hidden}
+.timer-wrap i{position:absolute;inset:0 auto 0 0;width:100%;background:var(--luma);display:block}
+.timer-wrap.danger i{background:var(--ember);box-shadow:0 0 10px var(--ember)}
+.timer-wrap.danger{background:rgba(215,104,58,.18)}
+
+.tag{color:var(--ash);font-size:11.5px;letter-spacing:.16em;font-family:var(--ui)}
+.toast{
+  position:fixed;left:50%;bottom:34px;transform:translateX(-50%);z-index:70;
+  background:rgba(11,15,26,.95);border:1px solid var(--line);color:var(--bone);
+  font-family:var(--ui);font-size:13px;letter-spacing:.06em;padding:10px 16px;max-width:88vw;text-align:center;
+}
+
+
+/* ---------- character portraits ---------- */
+.portrait{width:62px;height:62px;margin:2px 0 4px;color:var(--ash);opacity:.75}
+.portrait:empty{display:none}
+.portrait svg{width:100%;height:100%;display:block}
+.portrait .por{fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+
+.name-hint{color:var(--ash);font-family:var(--ui);font-size:12px;letter-spacing:.06em;margin:-6px 0 0;opacity:.7}
+.menu-btn[disabled]{opacity:.32;cursor:not-allowed;border-color:var(--line);color:var(--ash)}
+.menu-btn[disabled]:hover{border-color:var(--line);color:var(--ash);background:transparent}
+
+/* enemy-specific shapes reuse the shared state animations */
+.glimpse .chains,.glimpse .numeral,.glimpse .smile,.glimpse .rays path{
+  fill:none;stroke:currentColor;stroke-width:1.4;stroke-linecap:round;
+}
+.glimpse .smile{stroke-width:2}
+.glimpse .rays{transform-origin:80px 58px}
+.glimpse[data-state="charge"] .rays{transform:scale(1.18)}
+.glimpse[data-state="still"] .rays{transform:scale(.8)}
+.glimpse circle.shell{fill:rgba(233,230,220,.06);stroke:currentColor;stroke-width:1.5}
+
+/* guarded a read you got wrong: you are still standing, it just cost air */
+.glimpse[data-state="brace"] .mask{transform:translateY(3px) scale(1.05);opacity:.85}
+.glimpse[data-state="brace"] .aura{opacity:.3;stroke:var(--ash);transform:scale(1.05)}
+
+/* the arena is short; centre it instead of leaving a field of nothing */
+#arena{min-height:calc(100vh - 66px);display:flex;flex-direction:column;justify-content:center}
+@supports (height:100dvh){ #arena{min-height:calc(100dvh - 66px)} }
+@media (max-height:620px){ #arena{min-height:0;justify-content:flex-start} }
