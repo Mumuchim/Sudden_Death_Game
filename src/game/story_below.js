@@ -100,11 +100,11 @@ var quietOne = {
   intro: 'It has been standing in the dark for longer than your country existed. It has your mask. A worse version of your mask.\n\nIt notices you the way a door notices weather.',
   outro: 'It comes apart into dust that is mostly cloth.\n\nThere is nothing in the mask. There was never going to be.',
   tells: [
-    { t: 'Its shoulder drops and the arm draws back slow, the way you swing something heavy.', a: 'slip', heavy: true,
+    { t: 'Its shoulder drops and the arm draws back slow, the way you swing something heavy.', a: 'jump', heavy: true,
       clear: 'Shoulder down. Heavy. Move.',
       ok: 'You step inside the arc. It goes past like weather and you come out the other side with your lungs full.',
       bad: 'It lands across your chest and your ribs learn something new.' },
-    { t: 'It snaps in close, short and fast, both hands at the height of your throat.', a: 'guard',
+    { t: 'It snaps in close, short and fast, both hands at the height of your throat.', a: 'parry',
       clear: 'Close. Fast. Hold.',
       ok: 'You get the arm up and take it on the bone. Nothing gained. Nothing lost. Good.',
       bad: 'Short, fast, and exactly where you were not.' },
@@ -112,7 +112,7 @@ var quietOne = {
       clear: 'Empty. Now.',
       ok: 'You hit it while it is nobody, and the light comes back on wrong.',
       bad: 'You wait for a thing that was already finished waiting.' },
-    { t: 'It drifts back out of reach, circling, unhurried, giving you the whole room.', a: 'focus',
+    { t: 'It drifts back out of reach, circling, unhurried, giving you the whole room.', a: 'heal',
       clear: 'It has given you the room. Take it.',
       ok: 'You use the room. You breathe. Something in you knits.',
       bad: 'You spend the moment on the wrong thing and it is already inside your arms.' }
@@ -126,11 +126,11 @@ var waterThing = {
   intro: 'It is long and it is under the surface and it has been listening to you walk for twenty minutes.\n\nWhen it comes up it does not splash. That is the part that stays with you.',
   outro: 'It sinks. The water closes over the place where it was and goes back to being water.',
   tells: [
-    { t: 'It rears, gathers, and the whole length of it winds up behind the head.', a: 'slip', heavy: true,
+    { t: 'It rears, gathers, and the whole length of it winds up behind the head.', a: 'jump', heavy: true,
       clear: 'It is winding up. Move.',
       ok: 'You are not there when it arrives. Your lungs thank you.',
       bad: 'It arrives.' },
-    { t: 'It goes flat and skims in, low and fast, mouth first.', a: 'guard',
+    { t: 'It goes flat and skims in, low and fast, mouth first.', a: 'parry',
       clear: 'Low, fast, straight in. Hold.',
       ok: 'You brace and it breaks on you and neither of you gains a thing.',
       bad: 'Low and fast and through you.' },
@@ -138,7 +138,7 @@ var waterThing = {
       clear: 'Stuck. Now.',
       ok: 'You put everything into the half second it gave you.',
       bad: 'You use the half second on nothing and it takes it back.' },
-    { t: 'It slides away into the deep water and the surface goes smooth.', a: 'focus',
+    { t: 'It slides away into the deep water and the surface goes smooth.', a: 'heal',
       clear: 'Gone, for now. Breathe.',
       ok: 'You get your back to a wall and your breath back in your chest. The footing here is bad. You will not be dodging anything next.',
       bad: 'The smooth water was not an invitation.' }
@@ -152,11 +152,11 @@ var longArmed = {
   intro: 'It was somebody\'s idea of a guard, once, and nobody has told it that the thing it guards is gone.\n\nIts arms reach the walls on both sides of the gallery at the same time.',
   outro: 'It kneels, slowly, the way something kneels when it has been standing at a door for three hundred years and is finally allowed to stop.',
   tells: [
-    { t: 'It hauls one arm across the whole width of the gallery, wall to wall, slow and total.', a: 'slip', heavy: true,
+    { t: 'It hauls one arm across the whole width of the gallery, wall to wall, slow and total.', a: 'jump', heavy: true,
       clear: 'Wall to wall. Under it.',
       ok: 'You go under. The wall behind you takes what was meant for you.',
       bad: 'Wall to wall means wall to wall.' },
-    { t: 'Both hands come in at once from either side, fast, like a book closing.', a: 'guard',
+    { t: 'Both hands come in at once from either side, fast, like a book closing.', a: 'parry',
       clear: 'Both sides. Brace.',
       ok: 'You set yourself and the book closes on something that does not give.',
       bad: 'The book closes.' },
@@ -164,7 +164,7 @@ var longArmed = {
       clear: 'Caught. Open. Now.',
       ok: 'You walk up the arm and hit the place where the arm stops being an arm.',
       bad: 'It unhooks itself while you are deciding.' },
-    { t: 'It folds your striking arm in against your body and stands very tall and very still, out of range.', a: 'focus',
+    { t: 'It folds your striking arm in against your body and stands very tall and very still, out of range.', a: 'heal',
       clear: 'It has pinned the arm. That is the tell. Breathe.',
       ok: 'You do not go to it. You stand where you are and put yourself back together with the one arm you have.',
       bad: 'It was not as far away as it looked.' }
@@ -177,14 +177,14 @@ var keeper = {
   poise: 10,
   intro: 'It is not a guard and it is not an animal. It is the shape three hundred years of holding makes when it finally gets to move.\n\nIt does not want anything. That is what makes it awful.',
   outro: 'It stops. Not defeated — finished, the way a sentence finishes.',
-  phase: { at: 5, index: 2, a: 'slip',
+  phase: { at: 5, index: 2, a: 'jump',
     text: 'It changes. The stillness is not stillness any more — when the light goes out now, that is the wind-up, and you have half a second to unlearn everything the last four minutes taught you.' },
   tells: [
-    { t: 'The whole room leans. Something enormous is being drawn back behind it.', a: 'slip', heavy: true,
+    { t: 'The whole room leans. Something enormous is being drawn back behind it.', a: 'jump', heavy: true,
       clear: 'The room is leaning. Move.',
       ok: 'You are somewhere else when the room comes back level.',
       bad: 'The room comes back level through you.' },
-    { t: 'It closes the distance in one step and strikes short, precise, at the mask.', a: 'guard',
+    { t: 'It closes the distance in one step and strikes short, precise, at the mask.', a: 'parry',
       clear: 'At the mask. Hold.',
       ok: 'You take it on your forearms and your teeth and the mask stays on.',
       bad: 'Something in the mask cracks and something behind the mask cracks with it.' },
@@ -192,7 +192,7 @@ var keeper = {
       clear: 'Dark and still.',
       ok: 'You hit it in the dark and the dark takes it badly.',
       bad: 'The dark was not an opening.' },
-    { t: 'It withdraws to the edge of the chamber and bows its head, and the chains take its weight.', a: 'focus',
+    { t: 'It withdraws to the edge of the chamber and bows its head, and the chains take its weight.', a: 'heal',
       clear: 'It has stepped back. Take the air.',
       ok: 'You take the air that is offered, because down here you take what is offered.',
       bad: 'The bow was not the end of the movement.' }
@@ -207,13 +207,13 @@ function apostleFoe(name, art, flavour, extra) {
     intro: flavour,
     outro: 'They go down. Under the mask is a face about your age. There is always a face about your age.',
     tells: [
-      { t: 'They drop the shoulder and load the back leg. You have seen this in a mirror.', a: 'slip', heavy: true,
+      { t: 'They drop the shoulder and load the back leg. You have seen this in a mirror.', a: 'jump', heavy: true,
         clear: 'Loading. Move.', ok: 'You slip it. It is like slipping yourself.', bad: 'They are better at it than you.' },
-      { t: 'They come in tight and fast and do not commit — three short ones at the guard.', a: 'guard',
+      { t: 'They come in tight and fast and do not commit — three short ones at the guard.', a: 'parry',
         clear: 'Short, tight, at the guard. Hold.', ok: 'You hold. They learn nothing. Neither do you.', bad: 'The third one is not like the first two.' },
       { t: 'They plant to swing and there is a beat in the middle of it where nothing is covered.', a: 'strike',
         clear: 'Nothing covered. Now.', ok: 'You take the beat. They make a sound that is not a monster\'s sound.', bad: 'There was no beat. You invented it.' },
-      { t: 'They step back out of range, set their feet, and simply look at you.', a: 'focus',
+      { t: 'They step back out of range, set their feet, and simply look at you.', a: 'heal',
         clear: 'They have stopped. Breathe.',
         ok: 'You breathe. So do they. Neither of you enjoys this.', bad: 'Looking at you was the attack.' }
     ]
@@ -228,15 +228,15 @@ var brightOne = {
   poise: 13,
   intro: 'She is not a monster and the game will not pretend she is.\n\nShe is enormous and she is beautiful and she has been asleep under everything you have walked on, and she did not ask to be woken, and the last thing she remembers is burning a world down because it stopped saying her name.\n\nShe looks at you. She knows exactly who sent you. You can see her decide that it does not matter, and that decision is the most frightening thing in the Below.',
   outro: 'The light goes out of her the way light goes out of a window at the end of a day.\n\nShe is not angry at the end. She says something and it is not for you, and the Below is dark and cold and yours.',
-  phase: { at: 7, index: 0, a: 'guard',
+  phase: { at: 7, index: 0, a: 'parry',
     text: 'She stops circling. What was a wind-up is now a wall of light arriving all at once, and there is nowhere in this chamber to go that is not in it.',
     clearText: 'The whole chamber fills with light and there is no outside of it.' },
   tells: [
-    { t: 'She draws the light back into herself and the chamber goes dim from the edges in.', a: 'slip', heavy: true,
+    { t: 'She draws the light back into herself and the chamber goes dim from the edges in.', a: 'jump', heavy: true,
       clear: 'She is drawing it back. Move.',
       ok: 'You are out of the line when it comes. The wall behind you is glass afterwards.',
       bad: 'You are in the line when it comes.' },
-    { t: 'Threads of light come off her fast and low, a hundred of them, all at once.', a: 'guard',
+    { t: 'Threads of light come off her fast and low, a hundred of them, all at once.', a: 'parry',
       clear: 'A hundred at once. Cover.',
       ok: 'You cover everything that matters and let the rest happen.',
       bad: 'You cover the wrong everything.' },
@@ -244,7 +244,7 @@ var brightOne = {
       clear: 'She has forgotten you. Now.',
       ok: 'You go up her and it is the worst thing you have ever done and it works.',
       bad: 'She has not forgotten you. She was only being sad in front of you.' },
-    { t: 'She sits back on herself, dim, almost small, and the air goes still and cold and very bright behind your eyes.', a: 'focus',
+    { t: 'She sits back on herself, dim, almost small, and the air goes still and cold and very bright behind your eyes.', a: 'heal',
       clear: 'She has gone quiet. Take it.',
       ok: 'You take the quiet. You breathe in a room with her in it.',
       bad: 'You look away from her. In here, that is the mistake.' }
@@ -263,11 +263,11 @@ var manGod = {
   phase: { at: 9, index: 3, a: 'strike', speed: 0.88,
     text: 'He stops being warm.\n\nIt happens between one word and the next and there is nothing underneath it. No second face. No true form. Just a man who has stopped bothering, in a cardigan, in a room — and he is faster now, and when he steps back he is not giving you room any more. He is winding up.' },
   tells: [
-    { t: 'He talks, and while he talks he moves, and the movement is the part that is happening — a long lazy sweep of the arm with three hundred years behind it.', a: 'slip', heavy: true,
+    { t: 'He talks, and while he talks he moves, and the movement is the part that is happening — a long lazy sweep of the arm with three hundred years behind it.', a: 'jump', heavy: true,
       clear: 'The talking is cover. The arm is the thing. Move.',
       ok: 'You move while he is still being charming and the charm hits the wall instead.',
       bad: 'You listened. Of course you listened. You have been listening for the whole game.' },
-    { t: 'He comes forward fast with both hands, close, almost fond, like somebody taking your face to tell you something important.', a: 'guard',
+    { t: 'He comes forward fast with both hands, close, almost fond, like somebody taking your face to tell you something important.', a: 'parry',
       clear: 'Close and fond. Hold.',
       ok: 'You hold him off. Up close he smells like a classroom.',
       bad: 'He takes your face and tells you something important.' },
@@ -275,7 +275,7 @@ var manGod = {
       clear: 'He is actually laughing. Now.',
       ok: 'You hit him while he is laughing. The laugh keeps going for half a beat after it should have stopped.',
       bad: 'The laugh was on purpose. Everything is on purpose.' },
-    { t: 'He steps back, spreads his hands, and offers you a reasonable way out of this. It is a good offer. It is the best offer anybody has ever made you.', a: 'focus',
+    { t: 'He steps back, spreads his hands, and offers you a reasonable way out of this. It is a good offer. It is the best offer anybody has ever made you.', a: 'heal',
       clear: 'He is buying time. Use it too.',
       ok: 'You take the moment he wanted to spend on you and spend it on yourself instead.',
       bad: 'You take the offer seriously, for one second, and one second is the whole price.' }
@@ -899,7 +899,7 @@ S.hunt_bit = {
       return 'Bit is sitting on the plinth in the gallery with the coat across their knees and the pen in their hand. They have been crying. They have stopped. They are being extremely businesslike about the fact that they have stopped.\n\n{I did the system,} Bit says. {On him. I did the system on him and it came out wrong.}\n\n{He told me I was the only one. He told the other eight they were the only one. I know, because I have got their names, I have had their names for two years, and I never once asked any of them the one question — because it did not occur to me that there was a question.}\n\nBit holds up the coat.\n\n{There\'s nine now. Nine\'s you. He says I have to cross you out.}';
     }
     if (lv >= 1) {
-      return 'Bit is in the gallery with the stick that is much too big, in a stance they have clearly practised in a mirror, and they are thirteen.\n\n{I have to,} Bit says. {It\'s not — I know what you\'re going to say. I have to, because he knows where I sleep, and he\'s always known where I sleep, and I only worked out this week that him knowing where I sleep was a thing he told me on purpose.}\n\nThe stick is shaking. Bit puts the other hand on it to stop it.';
+      return 'Bit is in the gallery with the stick that is much too big, in a stance they have clearly practised in a mirror, and they are thirteen.\n\n{I have to,} Bit says. {It\'s not — I know what you\'re going to say. I have to, because he knows where I sleep, and he\'s always known where I sleep, and I only worked out this week that him knowing where I sleep was a thing he told me on purpose.}\n\nThe stick is shaking. Bit puts the other hand on it to stop it, and it does not stop it, and for a second the whole practised stance comes apart at once. %%NO NO NO NO \u2014 I\'m not, I\'m not doing this wrong, I did the system, I DID THE SYSTEM \u2014%% and then a short, awful laugh that has no joke anywhere near it, %%hahaha, oh, that\'s — that\'s funny, that\'s actually funny \u2014%% and then Bit is thirteen again, and quiet, and ashamed of the noise, which is somehow worse than the noise was.';
     }
     return 'Bit is in the gallery with the stick that is much too big.\n\nYou did not sign the coat. You did not ask about the other eight. You listened to eleven minutes of a system a child built to keep strangers alive, and then you went and looked at a dead body instead.\n\nBit is not angry. Bit is thirteen and has a job.';
   },

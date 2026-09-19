@@ -165,9 +165,9 @@ S.school_d1_a = {
     api.applyPools(st);
     if (st.jealousy === undefined) st.jealousy = 0;
   },
-  text: 'There is a seat saved for you. There is always a seat saved for you now — third row, by the window, with a bag on it that gets lifted off about half a second before you get there.\n\n' +
-    '[[Mira]] does not make a thing of it. That is the whole trick of her. {You\'re late, $NAME,} she says. {I told her you were in the toilets.} And she slides the bag onto the floor and carries on drawing something small and awful in the corner of her notes.\n\n' +
-    'She got your coffee order wrong again. On purpose. She has been getting it wrong on purpose since September, because the first time she did it you laughed so hard you got told off, and she has decided that is a thing worth doing forever.',
+  text: 'There is a seat saved for you. There is always a seat saved for you now — third row, by the window, with a bag on it that gets lifted off about half a second before you get there, as if she heard your footsteps in the corridor two floors down and timed it.\n\n' +
+    '[[Mira]] does not make a thing of it. That is the whole trick of her. {You\'re late, $NAME,} she says. {I told her you were in the toilets.} And she slides the bag onto the floor and carries on drawing something small and awful in the corner of her notes — a shape that, if you looked at it properly instead of glancing, you would recognise as the floor plan of a house.\n\n' +
+    'She got your coffee order wrong again. On purpose. She has been getting it wrong on purpose since September, because the first time she did it you laughed so hard you got told off, and she has decided that is a thing worth doing forever, in the particular way a person decides a thing is theirs.',
   choices: [
     { t: 'Take the seat. Tell her the coffee is a war crime.', do: function (st) { dev(st, 2); }, to: 'school_d1_ren' },
     { t: 'Take the seat. Say thanks. Get your book out.', to: 'school_d1_ren' },
@@ -452,7 +452,7 @@ S.lb_h2_soft = {
 
 S.lb_h2 = {
   chapter: 'Friday night — the science block',
-  text: 'She is between you and the way you came in. That happened slowly enough that there was never a moment to object to it.\n\n{You\'re doing the face,} [[Mira]] says. {The one where you\'re about to be reasonable at me.}\n\nShe is right. You were. Every instinct you have says talk her down, agree with her, be gentle, wait for the right moment.\n\nThere is no right moment. There was one, on Wednesday, and you have already spent it.',
+  text: 'She is between you and the way you came in. That happened slowly enough that there was never a moment to object to it.\n\n{You\'re doing the face,} [[Mira]] says. {The one where you\'re about to be reasonable at me.}\n\nShe is right. You were. Every instinct you have says talk her down, agree with her, be gentle, wait for the right moment.\n\nThere is no right moment. There was one, on Wednesday, and you have already spent it.\n\nSomething in her face gives way all at once, the way a held door gives way, and for two full seconds she is not doing a voice you have ever heard from her. %%NO. No, no, no \u2014 you don\'t get to look at me like that, $NAME, not you, not you of all the \u2014%% and then, just as fast, she is laughing, high and wrong, %%HAHAHA \u2014 oh, god, okay, okay, HAHAHAHA \u2014%% and then she is perfectly calm again, in the space of one breath, and it is the calm that is the worst part.',
   choices: [
     { t: 'Be gentle. Agree with everything. Wait for an opening.', to: 'lb_die_reasonable',
       peek: 'Heavy. The kind that does not come back.' },

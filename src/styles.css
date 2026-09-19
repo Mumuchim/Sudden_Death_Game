@@ -135,6 +135,8 @@ body{
 .poise i.gone{background:rgba(233,230,220,.12)}
 .prose.fight{min-height:5.2em;font-size:18.5px}
 .verbs{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:14px}
+.verb.full{grid-column:1 / -1}
+.parry-group{grid-column:1 / -1;display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px}
 .verb{
   background:transparent;border:1px solid var(--line);color:var(--bone);cursor:pointer;
   padding:10px 12px;text-align:left;font-family:var(--serif);transition:.18s;
@@ -213,6 +215,8 @@ body{
 .glimpse[data-state="lunge"] .mask{transform:translateY(8px) scale(1.3);transition-duration:.12s}
 .glimpse[data-state="lunge"] .aura{opacity:.42;stroke:var(--bone);transform:scale(.7)}
 .glimpse[data-state="lunge"] .shadow ellipse{transform:scaleX(1.25)}
+.glimpse[data-state="lunge"][data-dir="left"] .mask{transform:translateY(8px) translateX(-16px) scale(1.3) rotate(-6deg)}
+.glimpse[data-state="lunge"][data-dir="right"] .mask{transform:translateY(8px) translateX(16px) scale(1.3) rotate(6deg)}
 
 /* open — slumped, dim, cracked */
 .glimpse[data-state="open"] .mask{transform:translateY(6px) rotate(13deg) scale(.96);opacity:.65}

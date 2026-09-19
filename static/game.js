@@ -484,6 +484,8 @@ const store = {
   state: null,
   chapter: '',
   art: '',                  // portrait svg for this scene
+  speaker: '',               // id of whoever is currently speaking/focal
+  cast: [],                  // [{ id, art }] — others present but not speaking
   prose: '',                // html
   beat: '',                 // '' | 'quiet' | 'loud' — emphasis for a turning-point line
   quote: '',                // an epigraph shown above the prose
@@ -500,11 +502,11 @@ const store = {
   prefs: { slowTimer: false, music: true, muted: false },
   combat: {
     active: false, name: '', poise: 0, poiseMax: 0,
-    log: '', glimpse: 'idle', clarity: false, art: '',
+    log: '', glimpse: 'idle', dir: null, clarity: false, art: '',
     timerFrac: 1, timerOn: false, danger: false,
     canEcho: false, over: false, continueLabel: '', verbsOn: false,
-    statuses: [], locks: { strike: 0, guard: 0, slip: 0, focus: 0 },
-    verbOpen: { strike: true, guard: true, slip: true, focus: true },
+    statuses: [], locks: { strike: 0, parry: 0, jump: 0, heal: 0 },
+    verbOpen: { strike: true, parry: true, jump: true, heal: true },
     stagger: false, reeling: false, rail: []
   },
   hud: { ember: 0, emberCap: 5, scars: 0, breath: 0, breathCap: 8, echoes: 0, below: false },
@@ -736,6 +738,8 @@ function go(id) {
   store.beat = sc.beat || '';
   store.quote = sc.quote ? (typeof sc.quote === 'function' ? sc.quote(store.state) : sc.quote) : '';
   store.art = sc.art ? (PORTRAIT[sc.art] || '') : '';
+  store.speaker = sc.art || '';
+  store.cast = (sc.cast || []).filter(id => id !== sc.art).map(id => ({ id, art: PORTRAIT[id] || '' }));
   syncRail();
   store.canRestore = hasCheckpoint();
   store.choices = [];
@@ -778,35 +782,52 @@ function spendEchoOnChoice() {
 /* combat                                                              */
 /*
    Reading, not dice. Every tell still has exactly one right answer.
-   What changed: the ORDER is no longer memorisable.
+   The order is no longer memorisable, and getting it wrong now costs you.
+
+   Four verbs:
+   - Strike (Space)  — hurts twice as much as anything else, opens you up.
+   - Parry (arrows,  — a timed block in one of three directions: left,
+     left/front/right)  front, right. Guess the wrong side and it counts
+                        as a miss, same as guessing the wrong verb.
+   - Jump (down arrow) — a dodge. Some attacks are flatly unparryable and
+                        say so, plainly, in the text: those must be jumped.
+   - Heal (Ctrl)       — spends breath to mend one ember. Misread it and
+                        it costs you double.
 
    - Each enemy has a teach window. For the first few exchanges it walks
      its written pattern, so you get shown all four tells once, in a shape
      the writer chose.
    - After that a seeded shuffle bag takes over. You still see every tell
      once per cycle, never the same one twice running, and it will not
-     hand you a Focus tell when you have no breath to spend on it.
+     hand you a Heal tell when you have no breath to spend on it.
    - The seed is your run seed, so a save fights the same fight twice.
 
    Statuses:
-   - Staggered   — misread a heavy tell, or stall out twice running, and
-                   every verb but Guard goes dark for one exchange.
-                   Guarding out of it is free and clears it.
+   - Staggered   — any miss now staggers you, not just the heavy ones.
+                   While staggered every verb but Jump goes dark. Jumping
+                   clear is free and clears it. Standing there — trying
+                   anything else, or the clock running out on you — costs
+                   you again and leaves you staggered.
    - Reeling     — a clean Strike read while in Clarity knocks it back.
                    It cannot reach you that exchange.
 
-   There are no cooldowns. Nothing you did right ever takes a verb away
-   from you. The only thing that closes a verb is being staggered, and
-   being staggered is always something you did wrong.
-
-   Guard is never locked, under any circumstance. Nothing in this game
-   can hit you that you had no answer to.
+   There are no cooldowns beyond that. The clock itself runs tighter and
+   meaner than it used to — two to four seconds, shorter on anything that
+   cannot be blocked — and a miss is never a minor tick any more.
 */
+
+const DIRS = ['left', 'front', 'right'];
+const DIRCUE = {
+  left: 'It is coming from your left.',
+  front: 'It is coming straight down the middle.',
+  right: 'It is coming from your right.'
+};
 
 let def = null, winTo = '', loseTo = '';
 let poise = 0, streak = 0, clarity = false, hits = 0;
 let bondUsed = false, bondId = null, peekNext = false, over = false;
 let rafId = null, timerEnd = 0, timerLen = 0, paused = false;
+let curDir = null;
 
 /* tell sequencing */
 let rand = null, bag = [], drawn = 0, curT = 0, nxtT = 0, lastT = -1, shownT = -1;
@@ -818,16 +839,17 @@ let allyLines = [];
 const C = store.combat;
 
 function glimpseFor(a) {
-  return { slip: 'charge', guard: 'lunge', strike: 'open', focus: 'still' }[a] || 'idle';
+  return { jump: 'charge', parry: 'lunge', strike: 'open', heal: 'still' }[a] || 'idle';
 }
 
-function speedFor() {
+function speedFor(t) {
   let ms = (def.speed || 8000) * speedMul;
   if (def.accel) ms *= Math.pow(def.accel, Math.max(0, drawn - 1));
   if (clarity) ms *= 1.15;
-  if (stagger > 0) ms *= 1.25;   /* staggered gives you a beat to get the arm up */
+  if (stagger > 0) ms *= 1.15;   /* staggered still gives you a sliver more time to jump */
+  if (t && t.a === 'jump') ms *= 0.82;  /* unparryable attacks arrive meaner and faster */
   if (store.prefs.slowTimer) ms *= 1.75;
-  return Math.max(1400, ms);
+  return Math.max(2000, Math.min(4000, ms));
 }
 
 function stopTimer() {
@@ -837,7 +859,7 @@ function stopTimer() {
 
 function startTimer() {
   stopTimer();
-  timerLen = speedFor();
+  timerLen = speedFor(currentTell());
   timerEnd = performance.now() + timerLen;
   C.timerOn = true; C.timerFrac = 1; C.danger = false;
   let warned = false;
@@ -870,7 +892,7 @@ function shuffledBag() {
 /* never present a tell whose only right answer you cannot afford */
 function unaffordable(i) {
   const t = def.tells[i];
-  if (t.a === 'focus' && store.state.breath < 2) return true;
+  if (t.a === 'heal' && store.state.breath < 2) return true;
   return false;
 }
 
@@ -921,24 +943,23 @@ function tickStatuses() {
   if (reel > 0) reel--;
 }
 
-/* Guard is never closed. Nothing else is closed either, unless you are
-   staggered — and being staggered is always a thing you did, never a tax
-   on having played well. */
+/* Staggered, only Jump is open — you are off balance and there is no
+   blocking or striking or breathing from there, only getting clear. */
 function verbOpen(v) {
-  if (v === 'guard') return true;
-  return stagger <= 0;
+  if (stagger > 0) return v === 'jump';
+  return true;
 }
 
 function syncStatus() {
   const list = [];
-  if (stagger > 0) list.push({ k: 'bad', t: 'staggered', n: '', why: 'Guard only. Guarding clears it and costs nothing.' });
+  if (stagger > 0) list.push({ k: 'bad', t: 'staggered', n: '', why: 'Only Jump is open. Jump clears it. Anything else, and the clock, cost you again.' });
   if (reel > 0) list.push({ k: 'good', t: 'it is reeling', n: '', why: 'It cannot reach you this exchange.' });
   if (clarity) list.push({ k: 'good', t: 'clarity', n: '', why: 'Clean reads hit harder and the clock loosens.' });
   C.statuses = list;
-  C.locks = { strike: 0, guard: 0, slip: 0, focus: 0 };
+  C.locks = { strike: 0, parry: 0, jump: 0, heal: 0 };
   C.stagger = stagger > 0;
   C.reeling = reel > 0;
-  C.verbOpen = { strike: verbOpen('strike'), guard: true, slip: verbOpen('slip'), focus: verbOpen('focus') };
+  C.verbOpen = { strike: verbOpen('strike'), parry: verbOpen('parry'), jump: verbOpen('jump'), heal: verbOpen('heal') };
 }
 
 /* ---------- the item rail ---------- */
@@ -973,12 +994,16 @@ function syncRail() {
 function present(prefix) {
   tickStatuses();
   const t = currentTell();
+  curDir = t.a === 'parry' ? DIRS[Math.floor(rand() * DIRS.length)] : null;
   let body = prefix ? prefix + '\n\n' : '';
-  if (stagger > 0) body += '%%You are not set. Nothing you own is where you left it. Get the arm up.%%\n\n';
+  if (stagger > 0) body += '%%You are not set. Nothing you own is where you left it. Jump clear of it \u2014 that is the only door left open.%%\n\n';
   else if (reel > 0) body += '@@It is still going backwards. This one is free.@@\n\n';
   if (clarity) body += '@@The fight has gone quiet enough to see.@@\n\n';
   body += (clarity && t.clear) ? t.clear : t.t;
+  if (t.a === 'jump') body += '\n\n%%This one cannot be parried. There is no direction that blocks it. Jump, or take it.%%';
+  if (t.a === 'parry') body += '\n\n~~' + DIRCUE[curDir] + '~~';
   C.glimpse = glimpseFor(t.a);
+  C.dir = curDir;
   C.clarity = clarity;
   C.canEcho = store.state.echoes > 0 && !peekNext;
   C.verbsOn = false;
@@ -1063,12 +1088,11 @@ function timeout() {
   timeouts++;
   C.glimpse = 'hit';
   sfx.timeout();
-  let msg = '%%You do nothing. That is also an answer, and it is the worst one — it arrives anyway, on time, into a person who was still deciding.%%';
-  if (timeouts >= 2) { setStagger(1); msg += '\n\n%%Twice. You are off your feet now in the way that matters.%%'; }
-  damageSelf(1, msg);
+  const msg = '%%You do nothing. That is also an answer, and it is the worst one \u2014 it arrives anyway, on time, into a person who was still deciding.%%';
+  damageSelf(2, msg, true);
 }
 
-function damageSelf(dmg, msg) {
+function damageSelf(dmg, msg, causesStagger) {
   if (reel > 0) {
     reel = 0;
     return nextExchange(msg + '\n\n||It is too far back to finish it. The blow goes through the space where you would have been standing if either of you had been having a good night.||');
@@ -1082,6 +1106,7 @@ function damageSelf(dmg, msg) {
   timeouts = 0;
   hits++;
   api.hurt(dmg);
+  if (causesStagger && store.state.ember > 0) setStagger(1);
   if (store.state.ember <= 0) {
     over = true; C.over = true; stopTimer();
     typeOut(msg + '\n\n||The dark that has been patient with you stops being patient.||', () => {
@@ -1094,7 +1119,7 @@ function damageSelf(dmg, msg) {
 
 /* ---------- the four verbs ---------- */
 
-function verb(v) {
+function verb(v, dir) {
   if (over || !C.verbsOn) { skip(); return; }
   if (store.typing) { skip(); return; }
   if (!verbOpen(v)) { sfx.warn(); return; }
@@ -1102,47 +1127,32 @@ function verb(v) {
   C.verbsOn = false; C.canEcho = false;
   stopTimer();
   const t = currentTell();
-  const correct = t.a === v;
   const s = store.state;
 
-  /* guarding out of a stagger is free, always works, and clears it */
-  if (v === 'guard' && stagger > 0) {
+  /* jumping clear of a stagger is free, always works, and clears it —
+     it is the one door that never closes, but it is the only one. */
+  if (stagger > 0) {
     stagger = 0; timeouts = 0;
     endClarity(); C.glimpse = 'brace';
-    return nextExchange('||You get the arm up and stay behind it, and the room comes back level. Whatever it does this beat, it does to your forearms.||');
-  }
-
-  /* Guard is the one verb that is never a disaster. Read it wrong and you
-     still block — it just costs you the air you were saving. */
-  if (v === 'guard' && !correct) {
-    endClarity(); C.glimpse = 'brace';
-    timeouts = 0;
-    if (s.breath >= 2) {
-      s.breath -= 2; syncHud();
-      return nextExchange('||You get something in the way of it. Not the right something. It costs you the air you were holding on to.||');
-    }
-    if (t.a === 'focus') {
-      /* it wanted you to breathe and you had nothing to breathe with. the arm
-         is all you had. it is not your fault and it does not cost you. */
-      return nextExchange('||You throw an arm up with nothing behind it. It is not what the moment wanted. It is what you had.||');
-    }
-    return damageSelf(1, '||You throw an arm up with nothing behind it. Empty lungs make a bad wall.||');
+    return nextExchange('||You throw yourself clear of wherever you were standing and land somewhere that is, for one more beat, still yours.||');
   }
 
   timeouts = 0;
+  const correctVerb = t.a === v;
+  const correctDir = v !== 'parry' || dir === curDir;
+  const correct = correctVerb && correctDir;
 
-  if (v === 'focus') {
+  if (v === 'heal') {
     if (correct && s.breath >= 2) {
       s.breath -= 2; api.heal(1); sfx.heal();
       endClarity(); C.glimpse = 'recoil';
       return nextExchange('||' + (t.ok || 'You take the gap it gave you and breathe.') + '||');
     }
     endClarity(); C.glimpse = 'hit';
-    const m = (correct && s.breath < 2)
+    const m = (correctVerb && s.breath < 2)
       ? '||There is nothing left in your lungs to spend. You stand there wanting air and it watches you want it.||'
       : '||' + (t.bad || 'You close your eyes at exactly the wrong moment.') + '||';
-    if (t.heavy) setStagger(1);
-    return damageSelf(2, m);
+    return damageSelf(2, m, true);
   }
 
   if (correct) {
@@ -1150,14 +1160,14 @@ function verb(v) {
     dmg *= dmgMul;
     setPoise(poise - dmg);
     streak++;
-    const gain = (v === 'slip' ? 2 : 1) + (clarity ? 1 : 0);
+    const gain = (v === 'jump' ? 2 : 1) + (clarity ? 1 : 0);
     s.breath = Math.min(s.breathCap, s.breath + gain);
     sfx.good();
     C.glimpse = 'recoil';
     let msg = '||' + (t.ok || 'You read it right.') + '||';
 
-    if (v === 'strike') {
-      if (clarity) { setReel(1); msg += '\n\n||It goes backwards off it. For one exchange it is not a threat, it is furniture.||'; }
+    if (v === 'strike' && clarity) {
+      setReel(1); msg += '\n\n||It goes backwards off it. For one exchange it is not a threat, it is furniture.||';
     }
 
     if (!clarity && streak >= 3) {
@@ -1177,13 +1187,20 @@ function verb(v) {
     return nextExchange(msg);
   }
 
+  /* a miss. every miss now costs you and staggers you — there is no
+     verb left that absorbs a wrong read for free. */
   endClarity(); C.glimpse = 'hit';
-  if (t.heavy) {
-    setStagger(1);
-    return damageSelf(2, '||' + (t.bad || 'Wrong. It was never going to be that.') +
-      '\n\nThat one moves you. Your feet are in the wrong places and there is nothing to do about it but cover.||');
+  let dmg = 2, msg;
+  if (t.a === 'jump' && v !== 'jump') {
+    dmg = 3;
+    msg = '||' + (t.bad || 'You try to hold against a thing that was never going to be held.') +
+      '||\n\n%%That one could not be parried. Only jumped.%%';
+  } else if (v === 'parry' && correctVerb && !correctDir) {
+    msg = '||Wrong side. It comes through the gap you left open.||';
+  } else {
+    msg = '||' + (t.bad || 'Wrong. It was never going to be that.') + '||';
   }
-  damageSelf(1, '||' + (t.bad || 'Wrong. It was never going to be that.') + '||');
+  return damageSelf(dmg, msg, true);
 }
 
 function finish(msg) {
@@ -1412,21 +1429,21 @@ function openHelp() {
     kind: 'help', title: 'How to play',
     html: '<div class="help">' +
       '<p><b>Read.</b> Tap or press space to finish a line early. Number keys pick choices. The game never tells you which choices mattered, and most of the ones that matter do not look like they do.</p>' +
-      '<p><b>Fight by reading.</b> No dice anywhere. Every enemy tells you what it is about to do \u2014 in words, and in the shape it makes above the text \u2014 and the same tell always has the same right answer.</p>' +
-      '<p><b>The order is not fixed.</b> Each enemy shows you all four of its tells in its own written order first, so you can learn them. After that the order shuffles: you will still see every tell once a cycle, never twice running, and never a Focus tell you have no breath for. You cannot memorise a fight. You can only read it.</p>' +
-      '<p><b>Strike</b> when it is open; it hurts twice as much as anything else. <b>Slip</b> when it winds up something heavy; it gives you the most breath back. <b>Focus</b> only when it has stepped back \u2014 it heals and it costs breath, and misreading it hurts double.</p>' +
-      '<p><b>Nothing you do right takes a verb away from you.</b> There are no cooldowns. The only thing that ever closes a verb is being staggered, and you only get staggered by misreading something heavy or by standing there twice in a row.</p>' +
-      '<p><b>Guard is the one that is never a disaster, and it is never closed.</b> Guess wrong with it and you still block; it only costs the breath you were saving. Nothing in this game can hit you that you had no way to answer. If you do not know, guard.</p>' +
-      '<p><b>Staggered.</b> Misread a heavy tell, or let the clock run out twice running, and everything but Guard goes dark for one exchange. Guarding out of a stagger is free and clears it.</p>' +
-      '<p><b>Cooldowns.</b> Some tells strip a limb \u2014 the Long-Armed folds your striking arm in, deep water takes your footing. The number on a verb is how many exchanges until you get it back.</p>' +
+      '<p><b>Fight by reading.</b> No dice anywhere. Every enemy tells you what it is about to do \u2014 in words, and in the shape it makes above the text \u2014 and the same tell always has the same right answer. You have two to four seconds to answer it. That is not long.</p>' +
+      '<p><b>Strike</b> (space) when it is open; it hurts twice as much as anything else, and it leaves you open while you do it.</p>' +
+      '<p><b>Parry</b> (arrow keys \u2014 left, up, right) is a timed block in one of three directions. The text always tells you which side it is coming from. Block the wrong side and it counts as a full miss, same as guessing wrong entirely.</p>' +
+      '<p><b>Jump</b> (down arrow) is a dodge, and it is the only answer to anything the game tells you flatly cannot be parried. It will say so, in the text, every time \u2014 there is no hidden tell for this. Try to parry one of these anyway and it hurts worse than a normal miss.</p>' +
+      '<p><b>Heal</b> (Ctrl) only when it has stepped back \u2014 it mends one ember and costs breath, and misreading it hurts as much as any other miss.</p>' +
+      '<p><b>Every miss costs you, and every miss staggers you.</b> There is no verb left that absorbs a wrong read for free \u2014 not any more. A miss is a real wound and a bad position, both at once.</p>' +
+      '<p><b>Staggered.</b> One wrong read, or the clock running out on you, and everything but Jump goes dark for that beat. Jumping clear is free and clears it. Standing there and trying anything else \u2014 or freezing \u2014 hits you again and leaves you staggered.</p>' +
+      '<p><b>The order is not fixed.</b> Each enemy shows you all four of its tells in its own written order first, so you can learn them. After that the order shuffles: you will still see every tell once a cycle, never twice running, and never a Heal tell you have no breath for. You cannot memorise a fight. You can only read it, fast.</p>' +
       '<p><b>Reeling.</b> A clean Strike while you are in Clarity knocks it back. For one exchange it cannot reach you.</p>' +
-      '<p><b>The clock.</b> Every exchange is timed, and the worse the thing in front of you, the less time you get. Let it run out and it hits you anyway. Standing still is a choice with a price.</p>' +
-      '<p><b>Clarity.</b> Three correct reads in a row without Focus and the prose goes plain, the clock loosens, a clean read gives extra breath, and Strike hits harder still. One mistake ends it.</p>' +
-      '<p><b>Your bag is on the screen.</b> Items sit under the verbs in a fight and under the choices out of one. A glowing one is the game telling you now would be the moment. Using something in a fight costs you the exchange \u2014 you get a free guard instead of a read.</p>' +
+      '<p><b>Clarity.</b> Three correct reads in a row without Heal and the prose goes plain, the clock loosens slightly, a clean read gives extra breath, and Strike hits harder still. One mistake ends it.</p>' +
+      '<p><b>Your bag is on the screen.</b> Items sit under the verbs in a fight and under the choices out of one. A glowing one is the game telling you now would be the moment. Using something in a fight costs you the exchange \u2014 you take a free hit\'s worth of risk instead of a read.</p>' +
       '<p><b>Echoes</b> are mask shards found off the path. Spend one to feel what a choice costs, or to see the enemy\'s next move early.</p>' +
       '<p><b>Turning points save themselves.</b> Fall in the Below and you can be put back to the last one. It costs something, but it does not cost the run.</p>' +
       '<p><b>People are the mechanic.</b> Time spent on somebody is not flavour. It decides who stands aside for you later, and who does not get to.</p>' +
-      '<p><b>Keys.</b> 1\u20139 choose \u00b7 space skips typing \u00b7 Q W E R are Strike, Guard, Slip, Focus \u00b7 I bag \u00b7 B bonds \u00b7 Esc menu.</p>' +
+      '<p><b>Keys.</b> 1\u20139 choose \u00b7 space skips typing and Strikes in a fight \u00b7 arrow keys parry left / front / right \u00b7 down arrow jumps \u00b7 Ctrl heals \u00b7 I bag \u00b7 B bonds \u00b7 Esc menu.</p>' +
       '<p>If the clock is too fast there is a slower setting in the menu. It costs nothing.</p>' +
       '</div>'
   });
@@ -1654,9 +1671,9 @@ S.school_d1_a = {
     api.applyPools(st);
     if (st.jealousy === undefined) st.jealousy = 0;
   },
-  text: 'There is a seat saved for you. There is always a seat saved for you now — third row, by the window, with a bag on it that gets lifted off about half a second before you get there.\n\n' +
-    '[[Mira]] does not make a thing of it. That is the whole trick of her. {You\'re late, $NAME,} she says. {I told her you were in the toilets.} And she slides the bag onto the floor and carries on drawing something small and awful in the corner of her notes.\n\n' +
-    'She got your coffee order wrong again. On purpose. She has been getting it wrong on purpose since September, because the first time she did it you laughed so hard you got told off, and she has decided that is a thing worth doing forever.',
+  text: 'There is a seat saved for you. There is always a seat saved for you now — third row, by the window, with a bag on it that gets lifted off about half a second before you get there, as if she heard your footsteps in the corridor two floors down and timed it.\n\n' +
+    '[[Mira]] does not make a thing of it. That is the whole trick of her. {You\'re late, $NAME,} she says. {I told her you were in the toilets.} And she slides the bag onto the floor and carries on drawing something small and awful in the corner of her notes — a shape that, if you looked at it properly instead of glancing, you would recognise as the floor plan of a house.\n\n' +
+    'She got your coffee order wrong again. On purpose. She has been getting it wrong on purpose since September, because the first time she did it you laughed so hard you got told off, and she has decided that is a thing worth doing forever, in the particular way a person decides a thing is theirs.',
   choices: [
     { t: 'Take the seat. Tell her the coffee is a war crime.', do: function (st) { dev(st, 2); }, to: 'school_d1_ren' },
     { t: 'Take the seat. Say thanks. Get your book out.', to: 'school_d1_ren' },
@@ -1941,7 +1958,7 @@ S.lb_h2_soft = {
 
 S.lb_h2 = {
   chapter: 'Friday night — the science block',
-  text: 'She is between you and the way you came in. That happened slowly enough that there was never a moment to object to it.\n\n{You\'re doing the face,} [[Mira]] says. {The one where you\'re about to be reasonable at me.}\n\nShe is right. You were. Every instinct you have says talk her down, agree with her, be gentle, wait for the right moment.\n\nThere is no right moment. There was one, on Wednesday, and you have already spent it.',
+  text: 'She is between you and the way you came in. That happened slowly enough that there was never a moment to object to it.\n\n{You\'re doing the face,} [[Mira]] says. {The one where you\'re about to be reasonable at me.}\n\nShe is right. You were. Every instinct you have says talk her down, agree with her, be gentle, wait for the right moment.\n\nThere is no right moment. There was one, on Wednesday, and you have already spent it.\n\nSomething in her face gives way all at once, the way a held door gives way, and for two full seconds she is not doing a voice you have ever heard from her. %%NO. No, no, no \u2014 you don\'t get to look at me like that, $NAME, not you, not you of all the \u2014%% and then, just as fast, she is laughing, high and wrong, %%HAHAHA \u2014 oh, god, okay, okay, HAHAHAHA \u2014%% and then she is perfectly calm again, in the space of one breath, and it is the calm that is the worst part.',
   choices: [
     { t: 'Be gentle. Agree with everything. Wait for an opening.', to: 'lb_die_reasonable',
       peek: 'Heavy. The kind that does not come back.' },
@@ -2291,11 +2308,11 @@ var quietOne = {
   intro: 'It has been standing in the dark for longer than your country existed. It has your mask. A worse version of your mask.\n\nIt notices you the way a door notices weather.',
   outro: 'It comes apart into dust that is mostly cloth.\n\nThere is nothing in the mask. There was never going to be.',
   tells: [
-    { t: 'Its shoulder drops and the arm draws back slow, the way you swing something heavy.', a: 'slip', heavy: true,
+    { t: 'Its shoulder drops and the arm draws back slow, the way you swing something heavy.', a: 'jump', heavy: true,
       clear: 'Shoulder down. Heavy. Move.',
       ok: 'You step inside the arc. It goes past like weather and you come out the other side with your lungs full.',
       bad: 'It lands across your chest and your ribs learn something new.' },
-    { t: 'It snaps in close, short and fast, both hands at the height of your throat.', a: 'guard',
+    { t: 'It snaps in close, short and fast, both hands at the height of your throat.', a: 'parry',
       clear: 'Close. Fast. Hold.',
       ok: 'You get the arm up and take it on the bone. Nothing gained. Nothing lost. Good.',
       bad: 'Short, fast, and exactly where you were not.' },
@@ -2303,7 +2320,7 @@ var quietOne = {
       clear: 'Empty. Now.',
       ok: 'You hit it while it is nobody, and the light comes back on wrong.',
       bad: 'You wait for a thing that was already finished waiting.' },
-    { t: 'It drifts back out of reach, circling, unhurried, giving you the whole room.', a: 'focus',
+    { t: 'It drifts back out of reach, circling, unhurried, giving you the whole room.', a: 'heal',
       clear: 'It has given you the room. Take it.',
       ok: 'You use the room. You breathe. Something in you knits.',
       bad: 'You spend the moment on the wrong thing and it is already inside your arms.' }
@@ -2317,11 +2334,11 @@ var waterThing = {
   intro: 'It is long and it is under the surface and it has been listening to you walk for twenty minutes.\n\nWhen it comes up it does not splash. That is the part that stays with you.',
   outro: 'It sinks. The water closes over the place where it was and goes back to being water.',
   tells: [
-    { t: 'It rears, gathers, and the whole length of it winds up behind the head.', a: 'slip', heavy: true,
+    { t: 'It rears, gathers, and the whole length of it winds up behind the head.', a: 'jump', heavy: true,
       clear: 'It is winding up. Move.',
       ok: 'You are not there when it arrives. Your lungs thank you.',
       bad: 'It arrives.' },
-    { t: 'It goes flat and skims in, low and fast, mouth first.', a: 'guard',
+    { t: 'It goes flat and skims in, low and fast, mouth first.', a: 'parry',
       clear: 'Low, fast, straight in. Hold.',
       ok: 'You brace and it breaks on you and neither of you gains a thing.',
       bad: 'Low and fast and through you.' },
@@ -2329,7 +2346,7 @@ var waterThing = {
       clear: 'Stuck. Now.',
       ok: 'You put everything into the half second it gave you.',
       bad: 'You use the half second on nothing and it takes it back.' },
-    { t: 'It slides away into the deep water and the surface goes smooth.', a: 'focus',
+    { t: 'It slides away into the deep water and the surface goes smooth.', a: 'heal',
       clear: 'Gone, for now. Breathe.',
       ok: 'You get your back to a wall and your breath back in your chest. The footing here is bad. You will not be dodging anything next.',
       bad: 'The smooth water was not an invitation.' }
@@ -2343,11 +2360,11 @@ var longArmed = {
   intro: 'It was somebody\'s idea of a guard, once, and nobody has told it that the thing it guards is gone.\n\nIts arms reach the walls on both sides of the gallery at the same time.',
   outro: 'It kneels, slowly, the way something kneels when it has been standing at a door for three hundred years and is finally allowed to stop.',
   tells: [
-    { t: 'It hauls one arm across the whole width of the gallery, wall to wall, slow and total.', a: 'slip', heavy: true,
+    { t: 'It hauls one arm across the whole width of the gallery, wall to wall, slow and total.', a: 'jump', heavy: true,
       clear: 'Wall to wall. Under it.',
       ok: 'You go under. The wall behind you takes what was meant for you.',
       bad: 'Wall to wall means wall to wall.' },
-    { t: 'Both hands come in at once from either side, fast, like a book closing.', a: 'guard',
+    { t: 'Both hands come in at once from either side, fast, like a book closing.', a: 'parry',
       clear: 'Both sides. Brace.',
       ok: 'You set yourself and the book closes on something that does not give.',
       bad: 'The book closes.' },
@@ -2355,7 +2372,7 @@ var longArmed = {
       clear: 'Caught. Open. Now.',
       ok: 'You walk up the arm and hit the place where the arm stops being an arm.',
       bad: 'It unhooks itself while you are deciding.' },
-    { t: 'It folds your striking arm in against your body and stands very tall and very still, out of range.', a: 'focus',
+    { t: 'It folds your striking arm in against your body and stands very tall and very still, out of range.', a: 'heal',
       clear: 'It has pinned the arm. That is the tell. Breathe.',
       ok: 'You do not go to it. You stand where you are and put yourself back together with the one arm you have.',
       bad: 'It was not as far away as it looked.' }
@@ -2368,14 +2385,14 @@ var keeper = {
   poise: 10,
   intro: 'It is not a guard and it is not an animal. It is the shape three hundred years of holding makes when it finally gets to move.\n\nIt does not want anything. That is what makes it awful.',
   outro: 'It stops. Not defeated — finished, the way a sentence finishes.',
-  phase: { at: 5, index: 2, a: 'slip',
+  phase: { at: 5, index: 2, a: 'jump',
     text: 'It changes. The stillness is not stillness any more — when the light goes out now, that is the wind-up, and you have half a second to unlearn everything the last four minutes taught you.' },
   tells: [
-    { t: 'The whole room leans. Something enormous is being drawn back behind it.', a: 'slip', heavy: true,
+    { t: 'The whole room leans. Something enormous is being drawn back behind it.', a: 'jump', heavy: true,
       clear: 'The room is leaning. Move.',
       ok: 'You are somewhere else when the room comes back level.',
       bad: 'The room comes back level through you.' },
-    { t: 'It closes the distance in one step and strikes short, precise, at the mask.', a: 'guard',
+    { t: 'It closes the distance in one step and strikes short, precise, at the mask.', a: 'parry',
       clear: 'At the mask. Hold.',
       ok: 'You take it on your forearms and your teeth and the mask stays on.',
       bad: 'Something in the mask cracks and something behind the mask cracks with it.' },
@@ -2383,7 +2400,7 @@ var keeper = {
       clear: 'Dark and still.',
       ok: 'You hit it in the dark and the dark takes it badly.',
       bad: 'The dark was not an opening.' },
-    { t: 'It withdraws to the edge of the chamber and bows its head, and the chains take its weight.', a: 'focus',
+    { t: 'It withdraws to the edge of the chamber and bows its head, and the chains take its weight.', a: 'heal',
       clear: 'It has stepped back. Take the air.',
       ok: 'You take the air that is offered, because down here you take what is offered.',
       bad: 'The bow was not the end of the movement.' }
@@ -2398,13 +2415,13 @@ function apostleFoe(name, art, flavour, extra) {
     intro: flavour,
     outro: 'They go down. Under the mask is a face about your age. There is always a face about your age.',
     tells: [
-      { t: 'They drop the shoulder and load the back leg. You have seen this in a mirror.', a: 'slip', heavy: true,
+      { t: 'They drop the shoulder and load the back leg. You have seen this in a mirror.', a: 'jump', heavy: true,
         clear: 'Loading. Move.', ok: 'You slip it. It is like slipping yourself.', bad: 'They are better at it than you.' },
-      { t: 'They come in tight and fast and do not commit — three short ones at the guard.', a: 'guard',
+      { t: 'They come in tight and fast and do not commit — three short ones at the guard.', a: 'parry',
         clear: 'Short, tight, at the guard. Hold.', ok: 'You hold. They learn nothing. Neither do you.', bad: 'The third one is not like the first two.' },
       { t: 'They plant to swing and there is a beat in the middle of it where nothing is covered.', a: 'strike',
         clear: 'Nothing covered. Now.', ok: 'You take the beat. They make a sound that is not a monster\'s sound.', bad: 'There was no beat. You invented it.' },
-      { t: 'They step back out of range, set their feet, and simply look at you.', a: 'focus',
+      { t: 'They step back out of range, set their feet, and simply look at you.', a: 'heal',
         clear: 'They have stopped. Breathe.',
         ok: 'You breathe. So do they. Neither of you enjoys this.', bad: 'Looking at you was the attack.' }
     ]
@@ -2419,15 +2436,15 @@ var brightOne = {
   poise: 13,
   intro: 'She is not a monster and the game will not pretend she is.\n\nShe is enormous and she is beautiful and she has been asleep under everything you have walked on, and she did not ask to be woken, and the last thing she remembers is burning a world down because it stopped saying her name.\n\nShe looks at you. She knows exactly who sent you. You can see her decide that it does not matter, and that decision is the most frightening thing in the Below.',
   outro: 'The light goes out of her the way light goes out of a window at the end of a day.\n\nShe is not angry at the end. She says something and it is not for you, and the Below is dark and cold and yours.',
-  phase: { at: 7, index: 0, a: 'guard',
+  phase: { at: 7, index: 0, a: 'parry',
     text: 'She stops circling. What was a wind-up is now a wall of light arriving all at once, and there is nowhere in this chamber to go that is not in it.',
     clearText: 'The whole chamber fills with light and there is no outside of it.' },
   tells: [
-    { t: 'She draws the light back into herself and the chamber goes dim from the edges in.', a: 'slip', heavy: true,
+    { t: 'She draws the light back into herself and the chamber goes dim from the edges in.', a: 'jump', heavy: true,
       clear: 'She is drawing it back. Move.',
       ok: 'You are out of the line when it comes. The wall behind you is glass afterwards.',
       bad: 'You are in the line when it comes.' },
-    { t: 'Threads of light come off her fast and low, a hundred of them, all at once.', a: 'guard',
+    { t: 'Threads of light come off her fast and low, a hundred of them, all at once.', a: 'parry',
       clear: 'A hundred at once. Cover.',
       ok: 'You cover everything that matters and let the rest happen.',
       bad: 'You cover the wrong everything.' },
@@ -2435,7 +2452,7 @@ var brightOne = {
       clear: 'She has forgotten you. Now.',
       ok: 'You go up her and it is the worst thing you have ever done and it works.',
       bad: 'She has not forgotten you. She was only being sad in front of you.' },
-    { t: 'She sits back on herself, dim, almost small, and the air goes still and cold and very bright behind your eyes.', a: 'focus',
+    { t: 'She sits back on herself, dim, almost small, and the air goes still and cold and very bright behind your eyes.', a: 'heal',
       clear: 'She has gone quiet. Take it.',
       ok: 'You take the quiet. You breathe in a room with her in it.',
       bad: 'You look away from her. In here, that is the mistake.' }
@@ -2454,11 +2471,11 @@ var manGod = {
   phase: { at: 9, index: 3, a: 'strike', speed: 0.88,
     text: 'He stops being warm.\n\nIt happens between one word and the next and there is nothing underneath it. No second face. No true form. Just a man who has stopped bothering, in a cardigan, in a room — and he is faster now, and when he steps back he is not giving you room any more. He is winding up.' },
   tells: [
-    { t: 'He talks, and while he talks he moves, and the movement is the part that is happening — a long lazy sweep of the arm with three hundred years behind it.', a: 'slip', heavy: true,
+    { t: 'He talks, and while he talks he moves, and the movement is the part that is happening — a long lazy sweep of the arm with three hundred years behind it.', a: 'jump', heavy: true,
       clear: 'The talking is cover. The arm is the thing. Move.',
       ok: 'You move while he is still being charming and the charm hits the wall instead.',
       bad: 'You listened. Of course you listened. You have been listening for the whole game.' },
-    { t: 'He comes forward fast with both hands, close, almost fond, like somebody taking your face to tell you something important.', a: 'guard',
+    { t: 'He comes forward fast with both hands, close, almost fond, like somebody taking your face to tell you something important.', a: 'parry',
       clear: 'Close and fond. Hold.',
       ok: 'You hold him off. Up close he smells like a classroom.',
       bad: 'He takes your face and tells you something important.' },
@@ -2466,7 +2483,7 @@ var manGod = {
       clear: 'He is actually laughing. Now.',
       ok: 'You hit him while he is laughing. The laugh keeps going for half a beat after it should have stopped.',
       bad: 'The laugh was on purpose. Everything is on purpose.' },
-    { t: 'He steps back, spreads his hands, and offers you a reasonable way out of this. It is a good offer. It is the best offer anybody has ever made you.', a: 'focus',
+    { t: 'He steps back, spreads his hands, and offers you a reasonable way out of this. It is a good offer. It is the best offer anybody has ever made you.', a: 'heal',
       clear: 'He is buying time. Use it too.',
       ok: 'You take the moment he wanted to spend on you and spend it on yourself instead.',
       bad: 'You take the offer seriously, for one second, and one second is the whole price.' }
@@ -3090,7 +3107,7 @@ S.hunt_bit = {
       return 'Bit is sitting on the plinth in the gallery with the coat across their knees and the pen in their hand. They have been crying. They have stopped. They are being extremely businesslike about the fact that they have stopped.\n\n{I did the system,} Bit says. {On him. I did the system on him and it came out wrong.}\n\n{He told me I was the only one. He told the other eight they were the only one. I know, because I have got their names, I have had their names for two years, and I never once asked any of them the one question — because it did not occur to me that there was a question.}\n\nBit holds up the coat.\n\n{There\'s nine now. Nine\'s you. He says I have to cross you out.}';
     }
     if (lv >= 1) {
-      return 'Bit is in the gallery with the stick that is much too big, in a stance they have clearly practised in a mirror, and they are thirteen.\n\n{I have to,} Bit says. {It\'s not — I know what you\'re going to say. I have to, because he knows where I sleep, and he\'s always known where I sleep, and I only worked out this week that him knowing where I sleep was a thing he told me on purpose.}\n\nThe stick is shaking. Bit puts the other hand on it to stop it.';
+      return 'Bit is in the gallery with the stick that is much too big, in a stance they have clearly practised in a mirror, and they are thirteen.\n\n{I have to,} Bit says. {It\'s not — I know what you\'re going to say. I have to, because he knows where I sleep, and he\'s always known where I sleep, and I only worked out this week that him knowing where I sleep was a thing he told me on purpose.}\n\nThe stick is shaking. Bit puts the other hand on it to stop it, and it does not stop it, and for a second the whole practised stance comes apart at once. %%NO NO NO NO \u2014 I\'m not, I\'m not doing this wrong, I did the system, I DID THE SYSTEM \u2014%% and then a short, awful laugh that has no joke anywhere near it, %%hahaha, oh, that\'s — that\'s funny, that\'s actually funny \u2014%% and then Bit is thirteen again, and quiet, and ashamed of the noise, which is somehow worse than the noise was.';
     }
     return 'Bit is in the gallery with the stick that is much too big.\n\nYou did not sign the coat. You did not ask about the other eight. You listened to eleven minutes of a system a child built to keep strangers alive, and then you went and looked at a dead body instead.\n\nBit is not angry. Bit is thirteen and has a job.';
   },

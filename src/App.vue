@@ -48,13 +48,6 @@ const poisePips = computed(() => {
 const breathPct = computed(() => Math.round(100 * hud.value.breath / hud.value.breathCap) + '%')
 const echoDots = computed(() => '◈'.repeat(Math.min(8, hud.value.echoes)))
 
-const VERBS = [
-  { v: 'strike', name: 'Strike', hint: 'hurts it twice over, opens you' },
-  { v: 'guard', name: 'Guard', hint: 'always blocks, never closed' },
-  { v: 'slip', name: 'Slip', hint: 'dodges, returns breath' },
-  { v: 'focus', name: 'Focus', hint: 'heals one ember, costs breath' }
-]
-
 function verbOpen (v) { const o = combat.value.verbOpen; return !o || o[v] !== false }
 function useItem (id) { game.useBagItem(id) }
 
@@ -89,19 +82,27 @@ function onKey (e) {
     if (game.skip()) { e.preventDefault(); return }
     if (k === ' ') {
       e.preventDefault()
-      if (store.screen === 'combat' && store.combat.continueLabel) return game.combatContinue()
+      if (store.screen === 'combat') {
+        if (store.combat.continueLabel) return game.combatContinue()
+        if (store.combat.verbsOn) return game.verb('strike')
+        return
+      }
       const cont = store.choices.findIndex(c => c.cont)
       if (cont >= 0) game.choose(cont)
     }
     return
   }
-  if (k === 'i' && store.state) return game.openBag()
-  if (k === 'b' && store.state) return game.openBonds()
   if (store.screen === 'combat') {
-    const map = { q: 'strike', w: 'guard', e: 'slip', r: 'focus', 1: 'strike', 2: 'guard', 3: 'slip', 4: 'focus' }
-    if (map[k]) game.verb(map[k])
+    if (k === 'arrowleft') { e.preventDefault(); game.verb('parry', 'left'); return }
+    if (k === 'arrowup') { e.preventDefault(); game.verb('parry', 'front'); return }
+    if (k === 'arrowright') { e.preventDefault(); game.verb('parry', 'right'); return }
+    if (k === 'arrowdown') { e.preventDefault(); game.verb('jump'); return }
+    if (k === 'control') { game.verb('heal'); return }
+    if (k === 'i' && store.state) return game.openBag()
     return
   }
+  if (k === 'i' && store.state) return game.openBag()
+  if (k === 'b' && store.state) return game.openBonds()
   if (/^[1-9]$/.test(k)) game.choose(parseInt(k, 10) - 1)
 }
 
@@ -243,7 +244,7 @@ onUnmounted(() => {
         <i v-for="(alive, i) in poisePips" :key="i" :class="{ gone: !alive }"></i>
       </div>
 
-      <div class="glimpse" :data-state="combat.glimpse" aria-hidden="true" v-html="combat.art"></div>
+      <div class="glimpse" :data-state="combat.glimpse" :data-dir="combat.dir || ''" aria-hidden="true" v-html="combat.art"></div>
 
       <div v-show="combat.timerOn" class="timer-wrap" :class="{ danger: combat.danger }">
         <i :style="{ width: (timerFrac * 100) + '%' }"></i>
@@ -258,12 +259,40 @@ onUnmounted(() => {
       </div>
 
       <div class="verbs">
-        <button v-for="b in VERBS" :key="b.v" class="verb"
-                :class="{ locked: !verbOpen(b.v) }"
-                :disabled="!combat.verbsOn || !verbOpen(b.v)"
-                @click="game.verb(b.v)">
-          <b>{{ b.name }}</b><small>{{ b.hint }}</small>
-          <i class="cool">{{ verbOpen(b.v) ? '' : '—' }}</i>
+        <button class="verb full" :class="{ locked: !verbOpen('strike') }"
+                :disabled="!combat.verbsOn || !verbOpen('strike')"
+                @click="game.verb('strike')">
+          <b>Strike</b><small>space · hurts it twice over, opens you</small>
+          <i class="cool">{{ verbOpen('strike') ? '' : '—' }}</i>
+        </button>
+        <div class="parry-group">
+          <button class="verb" :class="{ locked: !verbOpen('parry') }"
+                  :disabled="!combat.verbsOn || !verbOpen('parry')"
+                  @click="game.verb('parry', 'left')">
+            <b>◄ Parry</b><small>left</small>
+          </button>
+          <button class="verb" :class="{ locked: !verbOpen('parry') }"
+                  :disabled="!combat.verbsOn || !verbOpen('parry')"
+                  @click="game.verb('parry', 'front')">
+            <b>▲ Parry</b><small>front</small>
+          </button>
+          <button class="verb" :class="{ locked: !verbOpen('parry') }"
+                  :disabled="!combat.verbsOn || !verbOpen('parry')"
+                  @click="game.verb('parry', 'right')">
+            <b>► Parry</b><small>right</small>
+          </button>
+        </div>
+        <button class="verb" :class="{ locked: !verbOpen('jump') }"
+                :disabled="!combat.verbsOn || !verbOpen('jump')"
+                @click="game.verb('jump')">
+          <b>Jump</b><small>▼ · dodges what cannot be blocked</small>
+          <i class="cool">{{ verbOpen('jump') ? '' : '—' }}</i>
+        </button>
+        <button class="verb" :class="{ locked: !verbOpen('heal') }"
+                :disabled="!combat.verbsOn || !verbOpen('heal')"
+                @click="game.verb('heal')">
+          <b>Heal</b><small>ctrl · mends one ember, costs breath</small>
+          <i class="cool">{{ verbOpen('heal') ? '' : '—' }}</i>
         </button>
       </div>
       <div v-if="rail.length" class="rail">
