@@ -159,6 +159,7 @@ function resolveLabels(id) {
 
 S.school_d1_a = {
   chapter: 'Monday', art: 'mira',
+  quote: 'She got your coffee order wrong on purpose. She has been getting it wrong on purpose since September.',
   onEnter: function (st) {
     if (!st.pools) st.pools = api.buildPools(st.seed);
     api.applyPools(st);
@@ -175,7 +176,8 @@ S.school_d1_a = {
 };
 
 S.school_d1_ren = {
-  chapter: 'Monday — second period',
+  chapter: 'Monday — second period', art: 'ren',
+  quote: 'That is all it is. A noise in a silent room.',
   text: 'The new one is called Ren.\n\nRen transferred in at the start of term and has spent six weeks being pleasantly unremarkable, and then this morning says something so dry about the seating plan that you make a noise in a silent room and have to pretend it was a cough.\n\nThat is all it is. A noise in a silent room.\n\nAt lunch [[Mira]] asks, lightly, who Ren is. You have not mentioned Ren. You are fairly sure nobody has mentioned Ren.\n\n{I\'m not being weird,} she says, and laughs at herself. And she is not being weird, and you both move on.',
   choices: [
     { t: 'Find Ren after class. Say the thing back.', do: function (st) { G.bond('ren', 1); jel(st, 2); }, to: 'school_d1_b' },
@@ -263,6 +265,7 @@ resolveLabels('school_d3_b');
 
 S.school_d4_a = {
   chapter: 'Thursday', art: 'mira',
+  quote: 'None of this excuses anything. It is not going to. But it is Thursday, and she is sixteen, and she is sitting right there.',
   text: '[[Mira]] is not herself today and will not say why.\n\nShe is in yesterday\'s shirt. She laughs half a beat after everybody else, like she is listening from another room. At one point she looks at the classroom door for a long time for no reason at all.\n\nThere is a photo on her lock screen you have never asked about — an older woman, a kitchen, a birthday cake with nobody behind it — and today, when the screen lights up, she puts her thumb over the woman\'s face without seeming to know she is doing it.\n\nNone of this excuses anything. It is not going to. But it is Thursday, and she is sixteen, and she is sitting right there.',
   choices: [
     { t: 'Ask if she\'s okay. Mean it.', do: function (st) { dev(st, 3); st.flags.kindday = true; }, to: 'school_d4_ren' },
@@ -338,6 +341,7 @@ S.school_d5_a = {
 
 S.school_d5_b = {
   chapter: 'Friday — the last quiet hour',
+  quote: 'Whatever you do with it, you will have done before you understood what it was for.',
   onEnter: function (st) { G.checkpoint('Friday, the last quiet hour'); },
   text: 'Everybody goes home. The building does the thing buildings do when they empty, where the whole size of it arrives at once.\n\nYou have about an hour. Nobody is going to tell you that. There is no music cue and there is no list.\n\nWhatever you do with it, you will have done before you understood what it was for.',
   choices: [
@@ -510,6 +514,7 @@ S.lb_die_run = {
 
 S.lb_final = {
   chapter: 'Friday night — the last bell', art: 'mira',
+  quote: 'The worst thing in the world is how much it still sounds like a good thing.',
   onEnter: function (st) { G.checkpoint('Friday night'); },
   text: function (st) {
     var lines = [];
@@ -610,6 +615,7 @@ S.short_way_no = {
 
 S.short_way_2 = {
   chapter: '',
+  beat: 'quiet',
   onEnter: function (st) { st.flags.shortWay = true; },
   text: 'You are seventeen for another four months.\n\nIt does not feel like winning. It was never going to. The only thing you take out of that road is the fact that she did not get to choose — and three hundred years from now, a very long way under everything, that will turn out to matter more than you could possibly have known, and a great deal less than you wanted it to.',
   contLabel: '—',
@@ -618,6 +624,8 @@ S.short_way_2 = {
 
 S.lb_kill1 = {
   chapter: 'Friday night — nine seconds', art: 'mira',
+  beat: 'quiet',
+  quote: 'She is saying that you do not have to be frightened. She believes that.',
   text: 'She comes the whole way.\n\nThere is a moment — short, and the only one there is going to be — where she is close enough that the thing in her hand stops being a threat and becomes a fact, and where her weight is on her front foot, and where she is still talking.\n\nShe is saying that you do not have to be frightened. She believes that. That is the horror of it, and it does not help you at all.',
   choices: [
     { t: function (st) { return 'Move first. Get to the heavy thing ' + P(st).tool.where + '.'; }, to: 'lb_kill2' },
@@ -667,14 +675,24 @@ S.lb_kill3 = {
 
 S.to_below = {
   chapter: '',
+  beat: 'loud',
   onEnter: function () { G.sfx.doom(); },
-  text: 'She kills you.\n\nIt is quick, and it is clumsy, and she is crying, and she says sorry a great many times. That is the whole of it. There is no lesson in it and nothing is redeemed.\n\nThe last thing is the ceiling tiles, and the sound of the heating, and her hand on the side of your face, which is warm.',
+  text: 'She kills you.',
+  contLabel: '—',
+  to: 'to_below_after'
+};
+
+S.to_below_after = {
+  chapter: '',
+  beat: 'quiet',
+  text: 'It is quick, and it is clumsy, and she is crying, and she says sorry a great many times.\n\nThat is the whole of it. There is no lesson in it and nothing is redeemed.\n\nThe last thing is the ceiling tiles, and the sound of the heating, and her hand on the side of your face, which is warm.',
   contLabel: '—',
   to: 'three_hundred'
 };
 
 S.three_hundred = {
   chapter: '',
+  beat: 'loud',
   onEnter: function () { G.sfx.bell(); },
   text: 'THREE HUNDRED YEARS LATER',
   contLabel: 'open your eyes',

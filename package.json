@@ -2,13 +2,14 @@
   "name": "sudden-death",
   "private": true,
   "version": "3.0.0",
-  "description": "Sudden Death — a browser story game by mumuchxm.",
+  "description": "Sudden Death \u2014 a browser story game by mumuchxm.",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "build:static": "node tools/build-static.js"
+    "build:static": "node tools/build-static.js",
+    "test": "node tools/selftest.mjs && node tools/domtest.mjs && node tools/audit.mjs"
   },
   "dependencies": {
     "vue": "^3.4.38"

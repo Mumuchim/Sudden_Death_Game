@@ -4,8 +4,9 @@ import { api } from './registry.js';
   var G = api, E = G.ENDINGS, S = G.SCENES;
 
   api.ENDING_ORDER = [
-    'oldbones', 'whatyoudid', 'blackhand',
-    'hers', 'whatyoudid_bad', 'hollow', 'sixth', 'ashlight', 'longquiet', 'carried', 'trade',
+    'blackhand',
+    'whatyoudid', 'oldbones',
+    'named', 'hers', 'whatyoudid_bad', 'hollow', 'sixth', 'ashlight', 'longquiet', 'carried', 'trade',
     'detention', 'fingers', 'breakfast'
   ];
 
@@ -19,18 +20,36 @@ import { api } from './registry.js';
   if (st.flags.killed) return '';
   return '';
 }
-function fourNote(st) {
-    if (st.four === 'spared') return 'You did not kill the fourth one. It does not make this a happier ending. It makes it a different kind of alone.';
-    if (st.four === 'fought') return 'You killed the fourth one. They were fifteen once, in a kitchen with the wrong number of chairs.';
+function fourNote(st) { return apostleNote(st); }
+
+  var AP = { ap_tallow: 'Tallow', ap_quill: 'Quill', ap_bit: 'Bit' };
+
+  function apostleNote(st) {
+    var a = st.apostles || {}, out = [], dead = [], kept = [];
+    Object.keys(AP).forEach(function (k) {
+      if (a[k] === 'dead') dead.push(AP[k]);
+      else if (a[k] === 'ally' || a[k] === 'spared') kept.push(AP[k]);
+    });
+    if (kept.length) out.push(kept.join(' and ') + ' walked out of this. Not saved. Out. It is not the same thing and it is the only thing that was ever on offer.');
+    if (dead.length) out.push(dead.join(' and ') + ' did not, and every one of them was told on an ordinary morning that they were the only one.');
+    if (!kept.length && !dead.length) out.push('You never learned what any of the three of them were. That is its own answer.');
+    return out.join(' ');
+  }
+
+  function mumuNote(st) {
+    var l = (st.bonds && st.bonds.mumu) || 0;
+    if (st.flags && st.flags.mumuName) return 'Somewhere down there a woman is saying her own name out loud, once a day, so that it does not go. You are the only person in three hundred years who asked her for it.';
+    if (l >= 3) return 'Mumu the Hollow is still in the Below, at the edge of a room, and for the first time since she started counting she does not know what happens next.';
+    if (l >= 1) return 'You never asked her name.';
     return '';
   }
 
   E.oldbones = {
-    title: 'Old Bones', kind: 'win',
-    blurb: 'You beat her, you refused him, you stayed, and you got old.',
-    note: function (st) { return [sealNote(st), fourNote(st), roadNote(st)].filter(Boolean).join(' '); },
+    title: 'Old Bones', kind: 'secret',
+    blurb: 'You beat her, you stayed, and you got old. He never once had to explain himself.',
+    note: function (st) { return [sealNote(st), apostleNote(st), mumuNote(st), roadNote(st)].filter(Boolean).join(' '); },
     text: function (st) {
-      return 'You stay.\n\nThe first ten years are work. The Below has been a place people survive in and you make it a place people live in, badly, then less badly. You are not good at it. You are simply there every time, which turns out to be most of it.\n\nThe next twenty you are known. Children who were not born when you came down here grow up in corridors you made safe and are extremely unimpressed by you, which is the correct outcome.\n\nThe twenty after that you are old. There is light in the Below again and a great deal of it is your fault. You never take the mask off. Nobody ever asks you to.\n\nAt the end there are people in the room. That is the whole of it. There are people in the room, and one of them is holding your hand, and you are very tired, and nothing comes to collect you.\n\nYou die in a bed, three hundred years and one life away from a corridor on a Friday, as a person who was there every time.';
+      return 'You stay.\n\nThe first ten years are work. The Below has been a place people survive in and you make it a place people live in, badly, then less badly. You are not good at it. You are simply there every time, which turns out to be most of it.\n\nThe next twenty you are known. Children who were not born when you came down here grow up in corridors you made safe and are extremely unimpressed by you, which is the correct outcome.\n\nThe twenty after that you are old. There is light in the Below again and a great deal of it is your fault. You never take the mask off. Nobody ever asks you to.\n\nAt the end there are people in the room. That is the whole of it. There are people in the room, and one of them is holding your hand, and you are very tired, and nothing comes to collect you.\n\nYou die in a bed, three hundred years and one life away from a corridor on a Friday, as a person who was there every time.\n\nAnd in a room you never found, with a chair in it and a cup on the table, a warm and funny man is being very kind to somebody who was told this morning that they were chosen.\n\nYou did everything right. It was not the thing.';
     }
   };
 
@@ -65,13 +84,24 @@ E.whatyoudid_bad = { title: 'Tidied', kind: 'loss',
 };
 
 E.blackhand = {
-    title: 'The Black Hand', kind: 'secret',
-    blurb: 'You doubted him, survived the Hunt, and the Deep carried you to the room he was standing in.',
-    note: function (st) { return fourNote(st); },
+    title: 'The Black Hand', kind: 'win',
+    blurb: 'The true one. You doubted him, survived the Hunt, and the Deep carried you to the room he was standing in.',
+    note: function (st) { return [apostleNote(st), mumuNote(st), sealNote(st)].filter(Boolean).join(' '); },
     text: function (st) {
-      return 'He does not get a speech.\n\nThat is the thing you decide, standing in an ordinary room over a man with a cup on the table beside him: he has had three hundred years of talking and every single word of it has been true and useful and aimed, and he does not get one more.\n\nAfterwards you sit down in his chair, because your legs go.\n\nThe Deep comes in slowly and fills the room and does not touch you. It has what it came for. It has been reaching upward for three centuries, and it was never rising, and there was never anything to seal — there was a thing in a room that it could not get to, and there was a long series of people who could.\n\nIt says one more thing to you and then it never speaks again, to you or to anyone. It says thank you. It says it the way you would say it to a hand.\n\nYou go back down into the Below, which is still dark, which still has her in it somewhere, unwoken, which still has everything in it that was in it before. You have fixed nothing. You have just ended the part where somebody was doing it on purpose.\n\n' + (st.four === 'spared'
-        ? 'And in the water at the bottom of the chapel steps, three days later, there is a mask, set down carefully, with nobody in it. No note. They were never going to write a note.\n\nYou keep it. You do not know what for.'
-        : 'And there is nobody in the water at the bottom of the chapel steps, and there is nobody in the gallery, and there is nobody anywhere, because you went through all of them to get here and every single one of them was somebody\'s kid.\n\nYou keep going anyway. That is what it costs.');
+      return 'He does not get a speech.\n\nThat is the thing you decide, standing in an ordinary room over a man with a cup on the table beside him: he has had three hundred years of talking and every single word of it has been true and useful and aimed, and he does not get one more.\n\nAfterwards you sit down in his chair, because your legs go.\n\nThe Deep comes in slowly and fills the room and does not touch you. It has what it came for. It has been reaching upward for three centuries, and it was never rising, and there was never anything to seal — there was a thing in a room that it could not get to, and there was a long series of people who could.\n\nIt says one more thing to you and then it never speaks again, to you or to anyone. It says thank you. It says it the way you would say it to a hand.\n\nYou go back down into the Below, which is still dark, which still has her in it somewhere, unwoken, which still has everything in it that was in it before. You have fixed nothing. You have just ended the part where somebody was doing it on purpose.\n\n' + (function () {
+        var a = st.apostles || {};
+        var kept = Object.keys(AP).filter(function (k) { return a[k] === 'ally' || a[k] === 'spared'; }).map(function (k) { return AP[k]; });
+        var dead = Object.keys(AP).filter(function (k) { return a[k] === 'dead'; }).map(function (k) { return AP[k]; });
+        var bits = [];
+        if (kept.length) bits.push('And ' + kept.join(' and ') + ' find out about it the way anybody down here finds out about anything, which is a month late, from a stranger, badly. Nobody throws a party. ' + (kept.length > 1 ? 'They sit' : 'They sit') + ' with it for a while and then go back to the small stupid work of a kingdom that has nobody minding it.');
+        if (dead.length) bits.push('And ' + dead.join(' and ') + ' are not there, because you went through them to get here, and every one of them was somebody\'s kid, and being right about him does not move a single one of them.');
+        if (st.bonds && st.bonds.mumu >= 3) {
+          bits.push('And down at the bottom, in the chapel, a woman is standing in the water with her knees wet, waiting to die and wake up and do it again.\n\nShe does not. The morning comes and she is still there, and the next one, and the one after that, and on the fourth day she sits down on the steps and cries for six hours, which is the longest she has been able to afford in three hundred years.');
+        } else if (st.flags && st.flags.met_mumu) {
+          bits.push('And somewhere at the edge of a room there is a woman who has done this eleven times and will not have to do it again, and you never got close enough to learn what she was called.');
+        }
+        return bits.join('\n\n');
+      })();
     }
   };
 
@@ -112,7 +142,7 @@ E.blackhand = {
   E.carried = {
     title: 'Carried', kind: 'loss',
     blurb: 'Someone died because of a reasonable call. You finished it anyway, alone.',
-    note: function (st) { return [sealNote(st), fourNote(st)].filter(Boolean).join(' '); },
+    note: function (st) { return [sealNote(st), apostleNote(st), mumuNote(st)].filter(Boolean).join(' '); },
     text: function (st) {
       return 'You stay, and you do the work, and the work gets done.\n\nThe Below has light in it again. You are the reason. People who were not born yet will grow up under it and be unimpressed by you, which is correct.\n\nAnd you do the whole of it on your own.\n\nNot because nobody offers — people offer, constantly, for sixty years. Because of a warehouse, or a tide, or a sound in the dark, and a decision you made with good information and good intentions that any reasonable person would have made, and which was avoidable, which you found out about eight months later from somebody who did not know they were telling you anything.\n\nYou carry their mask the entire time. It is not a shrine and you do not talk to it. It is just in the bag, under the other things, the way a thing is in a bag.\n\nAt the end there is nobody in the room. You have outlived everyone who would have been, which is what happens, and it is nobody\'s fault, and that is the exact reason it does not help.';
     }
@@ -123,6 +153,17 @@ E.blackhand = {
     blurb: 'Everyone lives. The light comes back. You are the price.',
     note: function (st) { return sealNote(st); },
     text: 'You give it back.\n\nEvery piece of you the Deep kept — which is the piece that has been walking, and reading tells, and holding on, and being a person for three hundred years past the point where you were entitled to be one.\n\nIt does not want it, particularly. That is almost funny. It takes it the way a tide takes a step back: because that is the arrangement, and because you asked, and because you are the only thing in the history of the Below that has ever asked it for anything instead of trying to seal it shut.\n\nAnd it stops reaching. Forever.\n\nThe Below is safe. Not held, not chained, not watched — safe, actually safe, in a way it has not been in three centuries. The light comes back on. Everyone you cared about grows old and complains about their knees. There are children. There is a second generation of children who think the story is made up.\n\nIt is the best outcome for absolutely everybody.\n\nYou do not get old. You do not get a bed, or a room with people in it, or sixty years of being unimpressive to teenagers.\n\nThat is a loss. It is a loss even though it is the right thing, and this game is not going to pretend otherwise: you won everything and you did not get the one thing, and the one thing was the whole point.'
+  };
+
+  E.named = {
+    title: 'Named', kind: 'loss',
+    blurb: 'You said out loud what he was, where the dark could hear you. He asked you for one thing.',
+    note: function (st) {
+      return st.flags.namedHow ? 'You said it ' + st.flags.namedHow + '.' : '';
+    },
+    text: function (st) {
+      return 'You say it out loud.\n\nIt is a good sentence. It is true, and it is brave, and it is the most useful thing anybody could have told the person standing in front of you, and it takes about two seconds to say.\n\nThe Below stops.\n\nNot the way a room goes quiet. The way a machine stops — everything at once, the singing and the water and the small sounds behind the walls, all of it, in the same instant, as though the entire kingdom has turned its head.\n\nYou have about a breath and a half to understand that he was not warning you. He was telling you how he does it.\n\nIt is not a monster. There is nothing to fight. It is simply that the dark comes and checks, and checking is not a thing you survive, and it takes no longer than the sentence did.\n\nThe last thing you hear is the person you said it to, saying your name, and getting halfway through it.\n\n%%He has lost a lot of people that way. That part was true. Everything he ever told you was true.%%';
+    }
   };
 
   E.detention = {

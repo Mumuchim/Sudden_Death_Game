@@ -28,6 +28,11 @@ const overlay = computed(() => (tick.value, store.overlay
   ? { ...store.overlay, rows: (store.overlay.rows || []).slice() }
   : null))
 const toast = computed(() => (tick.value, store.toast))
+const quote = computed(() => (tick.value, store.quote))
+const beat = computed(() => (tick.value, store.beat))
+const carrying = computed(() => (tick.value, (store.carrying || []).slice()))
+const rail = computed(() => (tick.value, (store.combat.rail || []).slice()))
+const statuses = computed(() => (tick.value, (store.combat.statuses || []).slice()))
 const hasSave = computed(() => (tick.value, store.hasSave))
 const saveLabel = computed(() => (tick.value, store.saveLabel))
 const typing = computed(() => (tick.value, store.typing))
@@ -45,10 +50,13 @@ const echoDots = computed(() => '◈'.repeat(Math.min(8, hud.value.echoes)))
 
 const VERBS = [
   { v: 'strike', name: 'Strike', hint: 'hurts it twice over, opens you' },
-  { v: 'guard', name: 'Guard', hint: 'always blocks; a wrong guard costs breath' },
+  { v: 'guard', name: 'Guard', hint: 'always blocks, never closed' },
   { v: 'slip', name: 'Slip', hint: 'dodges, returns breath' },
   { v: 'focus', name: 'Focus', hint: 'heals one ember, costs breath' }
 ]
+
+function verbOpen (v) { const o = combat.value.verbOpen; return !o || o[v] !== false }
+function useItem (id) { game.useBagItem(id) }
 
 const nameOk = computed(() => nameValue.value.trim().length > 0)
 
@@ -189,7 +197,8 @@ onUnmounted(() => {
     <main id="stage">
       <div class="portrait" aria-hidden="true" v-html="art"></div>
       <p class="chapter">{{ chapter }}</p>
-      <div class="prose" v-html="prose"></div>
+      <p v-if="quote" class="epigraph">{{ quote }}</p>
+      <div class="prose" :class="beat ? 'beat-' + beat : ''" v-html="prose"></div>
       <div class="choices">
         <button v-for="(c, i) in choices" :key="i" class="choice" :class="{ cont: c.cont }"
                 @click="game.choose(i)">
@@ -198,6 +207,13 @@ onUnmounted(() => {
         </button>
         <button v-if="showEcho" class="choice cont" @click="game.spendEchoOnChoice()">
           ◈ Spend an echo — feel what these cost
+        </button>
+      </div>
+      <div v-if="carrying.length" class="rail">
+        <span class="rail-label">You are carrying</span>
+        <button v-for="r in carrying" :key="r.id" class="item" :class="{ hot: r.hot }"
+                @click.stop="useItem(r.id)">
+          {{ r.label }}<small v-if="r.tag">{{ r.tag }}</small><i v-if="r.uses > 1">×{{ r.uses }}</i>
         </button>
       </div>
     </main>
@@ -235,10 +251,26 @@ onUnmounted(() => {
 
       <div class="prose fight" v-html="combat.log"></div>
 
+      <div v-if="statuses.length" class="statuses">
+        <span v-for="(s, i) in statuses" :key="i" class="chip" :class="s.k" :title="s.why">
+          {{ s.t }}<b v-if="s.n"> {{ s.n }}</b>
+        </span>
+      </div>
+
       <div class="verbs">
-        <button v-for="b in VERBS" :key="b.v" class="verb" :disabled="!combat.verbsOn"
+        <button v-for="b in VERBS" :key="b.v" class="verb"
+                :class="{ locked: !verbOpen(b.v) }"
+                :disabled="!combat.verbsOn || !verbOpen(b.v)"
                 @click="game.verb(b.v)">
           <b>{{ b.name }}</b><small>{{ b.hint }}</small>
+          <i class="cool">{{ verbOpen(b.v) ? '' : '—' }}</i>
+        </button>
+      </div>
+      <div v-if="rail.length" class="rail">
+        <span class="rail-label">Bag</span>
+        <button v-for="r in rail" :key="r.id" class="item" :class="{ hot: r.hot }"
+                @click.stop="useItem(r.id)">
+          {{ r.label }}<small v-if="r.tag">{{ r.tag }}</small><i v-if="r.uses > 1">×{{ r.uses }}</i>
         </button>
       </div>
       <div class="fight-extra">

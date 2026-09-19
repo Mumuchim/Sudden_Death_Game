@@ -43,8 +43,13 @@ function paint() {
     var por = $('portrait');
     if (por && por.dataset.art !== store.art) { por.dataset.art = store.art; por.innerHTML = store.art; }
     $('chapter').textContent = store.chapter;
-    $('prose').innerHTML = store.prose;
+    const q = $('quote');
+    if (q) { q.hidden = !store.quote; q.textContent = store.quote || ''; }
+    const pr = $('prose');
+    pr.className = 'prose' + (store.beat ? ' beat-' + store.beat : '');
+    pr.innerHTML = store.prose;
     paintChoices($('choices'));
+    paintRail($('carrying'), store.carrying, 'You are carrying');
   }
 
   if (store.screen === 'combat') {
@@ -63,7 +68,16 @@ function paint() {
     $('btn-echo-fight').hidden = !c.canEcho;
     $('btn-continue-fight').hidden = !c.continueLabel;
     $('btn-continue-fight').textContent = c.continueLabel || '';
-    document.querySelectorAll('#verbs .verb').forEach(b => { b.disabled = !c.verbsOn; });
+    paintStatuses($('statuses'), c);
+    document.querySelectorAll('#verbs .verb').forEach(b => {
+      const v = b.dataset.v;
+      const open = c.verbOpen ? c.verbOpen[v] !== false : true;
+      b.disabled = !c.verbsOn || !open;
+      b.classList.toggle('locked', !open);
+      const badge = b.querySelector('.cool');
+      if (badge) badge.textContent = open ? '' : '—';
+    });
+    paintRail($('rail'), c.rail, 'Bag');
   }
 
   if (store.screen === 'ending') {
@@ -85,6 +99,33 @@ function paint() {
 
   paintOverlay();
   paintToast();
+}
+
+function paintStatuses(wrap, c) {
+  if (!wrap) return;
+  const list = c.statuses || [];
+  if (!list.length) { wrap.innerHTML = ''; wrap.hidden = true; return; }
+  wrap.hidden = false;
+  wrap.innerHTML = list.map(s =>
+    '<span class="chip ' + s.k + '" title="' + (s.why || '') + '">' +
+    s.t + (s.n ? ' <b>' + s.n + '</b>' : '') + '</span>').join('');
+}
+
+/* items, where you can actually see them */
+function paintRail(wrap, rows, label) {
+  if (!wrap) return;
+  rows = rows || [];
+  if (!rows.length) { wrap.innerHTML = ''; wrap.hidden = true; return; }
+  wrap.hidden = false;
+  wrap.innerHTML = '<span class="rail-label">' + label + '</span>';
+  rows.forEach(r => {
+    const b = document.createElement('button');
+    b.className = 'item' + (r.hot ? ' hot' : '');
+    b.innerHTML = r.label + (r.tag ? '<small>' + r.tag + '</small>' : '') +
+      (r.uses > 1 ? '<i>×' + r.uses + '</i>' : '');
+    b.onclick = e => { e.stopPropagation(); game.useBagItem(r.id); };
+    wrap.appendChild(b);
+  });
 }
 
 function paintChoices(wrap) {

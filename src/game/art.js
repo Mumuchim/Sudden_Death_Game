@@ -62,6 +62,30 @@ export const ENEMY_ART = {
     '<path class="eyes" d="M70 66 q10 8 20 0"/>' +
     '<circle class="crack" cx="80" cy="58" r="16"/>'),
 
+  /* the regressor. a mask worn thin by being worn too many times. */
+  hollow: wrap(
+    '<path class="shell" d="M80 20 C60 20 49 38 49 58 c0 22 13 39 31 45 18-6 31-23 31-45 0-20-11-38-31-38z"/>' +
+    '<path class="eyes" d="M66 58 h12 M84 58 h12"/>' +
+    '<path class="crack" d="M80 22 l-6 20 7 8 -4 16 M62 40 l-5 -6 M100 44 l6 -5 M70 76 l-4 10 M92 74 l5 9"/>' +
+    '<path class="chains" d="M50 92 q30 10 60 0"/>'),
+
+  /* each apostle is a person, and the art says so: one soft edge */
+  apostle_tallow: wrap(
+    '<path class="horns" d="M58 42 L50 16 L70 34 Z M102 42 L110 16 L90 34 Z"/>' +
+    '<path class="shell" d="M80 20 C59 20 48 37 48 57 c0 22 13 39 32 45 19-6 32-23 32-45 0-20-11-37-32-37z"/>' +
+    '<path class="eyes" d="M65 56 h12 M83 56 h12"/>' +
+    '<path class="smile" d="M64 74 q16 12 32 0"/>'),
+  apostle_quill: wrap(
+    '<path class="shell" d="M80 18 C58 18 47 36 47 58 c0 23 14 40 33 46 19-6 33-23 33-46 0-22-11-40-33-40z"/>' +
+    '<path class="eyes" d="M64 56 h13 M83 56 h13"/>' +
+    '<path class="chains" d="M56 70 h48"/>' +
+    '<path class="horns" d="M80 18 L80 6 M64 22 L58 10 M96 22 L102 10"/>'),
+  apostle_bit: wrap(
+    '<path class="shell" d="M80 26 C62 26 52 42 52 60 c0 20 12 35 28 40 16-5 28-20 28-40 0-18-10-34-28-34z"/>' +
+    '<path class="eyes" d="M67 60 h11 M82 60 h11"/>' +
+    '<path class="horns" d="M60 46 L52 24 L72 40 Z"/>' +
+    '<path class="crack" d="M80 30 l-5 18 6 6"/>'),
+
   /* a warm, funny, helpful man */
   mangod: wrap(
     '<circle class="shell" cx="80" cy="56" r="32"/>' +
@@ -106,6 +130,37 @@ export const PORTRAIT = {
     '<path d="M32 34 h6 M43 34 h6"/>' +
     '<path d="M34 47 q6 4 12 0"/>' +
     '<path d="M22 66 q18 -10 36 0"/>'),
+  ren: face(
+    '<path d="M40 14 C29 14 22 26 22 38 c0 15 8 25 18 29 10-4 18-14 18-29 0-12-7-24-18-24z"/>' +
+    '<path d="M30 36 h8 M42 36 h8"/>' +
+    '<path d="M32 50 q8 3 16 -1"/>' +
+    '<path d="M20 22 q20 -10 40 0"/>'),
+  tallow: face(
+    '<path d="M40 14 C28 14 22 26 22 37 c0 14 8 24 18 28 10-4 18-14 18-28 0-11-6-23-18-23z"/>' +
+    '<path d="M30 34 h8 M42 34 h8"/>' +
+    '<path d="M31 47 q9 8 18 0"/>' +
+    '<path d="M18 68 q22 -12 44 0"/>' +
+    '<path d="M14 30 l6 4 M66 30 l-6 4"/>'),
+  quill: face(
+    '<path d="M40 12 C27 12 21 25 21 38 c0 16 8 27 19 31 11-4 19-15 19-31 0-13-6-26-19-26z"/>' +
+    '<path d="M29 36 h9 M42 36 h9"/>' +
+    '<path d="M33 52 h14"/>' +
+    '<path d="M16 24 q24 -12 48 0"/>' +
+    '<path d="M58 60 l10 -14"/>'),
+  bit: face(
+    '<path d="M40 20 C30 20 25 30 25 40 c0 13 6 21 15 24 9-3 15-11 15-24 0-10-5-20-15-20z"/>' +
+    '<path d="M32 39 h6 M43 39 h6"/>' +
+    '<path d="M35 50 q5 4 10 0"/>' +
+    '<path d="M62 8 v62"/>'),
+  mumu: face(
+    '<path d="M40 10 C26 10 19 24 19 38 c0 17 9 28 21 32 12-4 21-15 21-32 0-14-7-28-21-28z"/>' +
+    '<path d="M28 36 h10 M43 36 h10"/>' +
+    '<path d="M40 14 l-5 14 6 6 -4 12"/>' +
+    '<path d="M22 60 q18 8 36 0"/>'),
+  deep: face(
+    '<circle cx="40" cy="40" r="26" opacity=".35"/>' +
+    '<circle cx="40" cy="40" r="17" opacity=".6"/>' +
+    '<circle cx="40" cy="40" r="7"/>'),
   you: face(
     '<path d="M40 12 C27 12 21 25 21 38 c0 16 8 27 19 31 11-4 19-15 19-31 0-13-6-26-19-26z"/>' +
     '<path d="M29 37 h9 M43 37 h9"/>' +

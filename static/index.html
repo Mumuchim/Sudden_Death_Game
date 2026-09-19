@@ -13,6 +13,7 @@
 
 <canvas id="motes" aria-hidden="true"></canvas>
 <div id="vignette" aria-hidden="true"></div>
+<div id="flash" aria-hidden="true"></div>
 
 <section id="title" class="screen active">
   <div class="title-inner">
@@ -67,8 +68,10 @@
   <main id="stage">
     <div id="portrait" class="portrait" aria-hidden="true"></div>
     <p id="chapter" class="chapter"></p>
+    <p id="quote" class="epigraph" hidden></p>
     <div id="prose" class="prose"></div>
     <div id="choices" class="choices"></div>
+    <div id="carrying" class="rail" hidden></div>
   </main>
 </section>
 
@@ -99,12 +102,15 @@
 
     <div id="fight-log" class="prose fight"></div>
 
+    <div class="statuses" id="statuses"></div>
+
     <div class="verbs" id="verbs">
-      <button class="verb" data-v="strike"><b>Strike</b><small>hurts it twice over, opens you</small></button>
-      <button class="verb" data-v="guard"><b>Guard</b><small>always blocks; a wrong guard costs breath</small></button>
-      <button class="verb" data-v="slip"><b>Slip</b><small>dodges, returns breath</small></button>
-      <button class="verb" data-v="focus"><b>Focus</b><small>heals one ember, costs breath</small></button>
+      <button class="verb" data-v="strike"><b>Strike</b><small>hurts it twice over, opens you</small><i class="cool"></i></button>
+      <button class="verb" data-v="guard"><b>Guard</b><small>always blocks, never closed</small><i class="cool"></i></button>
+      <button class="verb" data-v="slip"><b>Slip</b><small>dodges, returns breath</small><i class="cool"></i></button>
+      <button class="verb" data-v="focus"><b>Focus</b><small>heals one ember, costs breath</small><i class="cool"></i></button>
     </div>
+    <div id="rail" class="rail" hidden></div>
     <div class="fight-extra">
       <button class="hud-btn" id="btn-echo-fight" hidden>Spend an Echo</button>
       <button class="hud-btn" id="btn-continue-fight" hidden>Continue</button>
