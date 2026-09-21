@@ -9,6 +9,19 @@ api.ENDING_ORDER = [
   'dawn', 'false_accusation', 'suspected', 'zombie', 'starved'
 ];
 
+function secondDeathLine(st) {
+  if (!st.flags.secondVictimId) return '';
+  var name = st.flags.secondVictimId === 'custodian' ? 'Mr. Dela Cruz, the night custodian' : 'June';
+  return '\n\nThe second victim was ' + name + '. Their death was not an accident or an infection; it was part of the same pattern that killed the first victim.';
+}
+
+function killerStatus(st) {
+  if (st.flags.miraExposed) return '\n\nThe group leaves knowing that Mira was the killer.';
+  if (st.flags.miraDead) return '\n\nMira died before you could prove who she was. The possibility that she was the killer is still unresolved.';
+  if (st.flags.accusationCorrect) return '\n\nYou named Mira, but the group never reached a full confession or formal exposure before the evacuation.';
+  return '\n\nMira is still with the group, and you never proved whether your suspicions about her were justified. The murders remain an unresolved danger.';
+}
+
 function survivors(st) {
   var ids = ['aya', 'eli', 'noah', 'reyes', 'mira'];
   var labels = { aya: 'Aya', eli: 'Eli', noah: 'Noah', reyes: 'Ms. Reyes', mira: 'Mira' };
@@ -27,10 +40,9 @@ E.evacuation = {
     var group = survivors(st);
     var infection = st.infected ? '\n\nThe soldiers ask about ' + ({ aya: 'Aya', eli: 'Eli', noah: 'Noah', mira: 'Mira', reyes: 'Ms. Reyes' }[st.infected] || st.infected) + '. The notice warned about fever, confusion and aggression.' : '';
     var truth = st.flags.miraExposed ? '\n\nYou tell the soldiers what happened inside the school. The truth is ugly, but it is finally outside the walls.' : '';
-    var unsolved = st.flags.miraDead ? '\n\nMira died before the killer could be named. You carry the unsolved question with you.' : '';
     return 'Floodlights hit the road. Soldiers check hands, faces and clothing before letting you through the barricade.\n\n' +
       (group.length ? group.join(', ') + ' are still with you.' : 'You do not have many people left.') +
-      '\n\nThe school is behind you. The infection is not.\n\nFor one exhausted moment, you are allowed to sit down.' + infection + truth + unsolved;
+      '\n\nThe school is behind you. The infection is not.\n\nFor one exhausted moment, you are allowed to sit down.' + infection + secondDeathLine(st) + truth + killerStatus(st);
   }
 };
 
@@ -47,8 +59,8 @@ E.truth = {
   blurb: 'You exposed Mira without pretending the person you cared about was never real.',
   text: function (st) {
     var first = ({ june: 'June', aya: 'Aya', eli: 'Eli', noah: 'Noah', mira: 'Mira' }[st.flags.firstVictimId] || 'June');
-    var protectedLine = st.flags.partnerProtection ? 'Someone you chose earlier in the week was still alive to hear the truth.' : 'The first death had already taken someone from the group before the truth was spoken aloud.';
-    return 'Mira does not fight when the evidence is laid out.\n\nShe asks whether you hate her.\n\nYou tell her you do not know.\n\nThat answer hurts more than anger would have.\n\nThe first victim was ' + first + '. ' + protectedLine + '\n\nYou finally understand the shape of the week: Mira was kind, frightened, loyal, manipulative and violent. None of those words erase the others.\n\nYou do not forgive her.\n\nYou also refuse to pretend she was a monster from the first moment you met her.\n\nThe truth is uglier than that.';
+    var protectedLine = st.flags.partnerSaved ? 'Someone you chose earlier in the week was still alive to hear the truth.' : 'The first death had already taken someone from the group before the truth was spoken aloud.';
+    return 'Mira does not fight when the evidence is laid out.\n\nShe asks whether you hate her.\n\nYou tell her you do not know.\n\nThat answer hurts more than anger would have.\n\nThe first victim was ' + first + '. ' + protectedLine + secondDeathLine(st) + '\n\nYou finally understand the shape of the week: Mira was kind, frightened, loyal, manipulative and violent. None of those words erase the others.\n\nYou do not forgive her.\n\nYou also refuse to pretend she was a monster from the first moment you met her.\n\nThe truth is uglier than that.';
   }
 };
 
@@ -56,14 +68,16 @@ E.together = {
   title: 'Just Us',
   kind: 'loss',
   blurb: 'You chose Mira after learning what she had done.',
-  text: 'You leave the school together.\n\nMira never lets go of your hand.\n\nShe does not ask whether you forgive her.\n\nShe only asks whether you are still here.\n\nThe city outside is full of infected people, empty cars and places where somebody might still be alive.\n\nYou have each other.\n\nThe frightening part is how quickly that starts to feel normal.'
+  text: 'You leave the school together.\n\nMira never lets go of your hand.\n\nShe does not ask whether you forgive her.\n\nShe only asks whether you are still here.\n\nInside the school, June and another victim are not walking out with you. You know exactly what that means.\n\nThe city outside is full of infected people, empty cars and places where somebody might still be alive.\n\nYou have each other.\n\nThe frightening part is how quickly that starts to feel normal.'
 };
 
 E.unsolved = {
   title: 'No Answer',
   kind: 'loss',
   blurb: 'Mira died before the killer was identified. The mystery survived her.',
-  text: 'Mira is dead.\n\nThe killer is not named.\n\nYou leave with a medicine log, a torn map, unexplained punctures and more questions than answers.\n\nThe helicopter notice gives you a destination, not an explanation.\n\nSome mysteries end with a reveal.\n\nThis one ends with you walking away because staying would mean waiting for another body.'
+  text: function (st) {
+    return 'Mira is dead.\n\nThe killer is not named.' + secondDeathLine(st) + '\n\nYou leave with a medicine log, a torn map, unexplained punctures and more questions than answers.\n\nThe helicopter notice gives you a destination, not an explanation.\n\nSome mysteries end with a reveal.\n\nThis one ends with you walking away because staying would mean waiting for another body.';
+  }
 };
 
 E.dawn = {
@@ -74,7 +88,7 @@ E.dawn = {
     var group = survivors(st);
     return 'The service road leads toward the edge of the city.\n\nThere is no celebration. Only pale morning light and the sound of people walking.\n\n' +
       (group.length ? group.join(', ') + ' are still beside you.' : 'You are mostly alone.') +
-      '\n\nYou do not know whether the military base is safe.\n\nYou only know that staying behind was worse.\n\nThe truth can wait one more day.\n\nFor now, you have one.';
+      '\n\nYou do not know whether the military base is safe.\n\nYou only know that staying behind was worse.' + secondDeathLine(st) + killerStatus(st) + '\n\nFor now, you have one more day.';
   }
 };
 

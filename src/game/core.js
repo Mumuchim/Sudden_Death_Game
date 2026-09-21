@@ -610,7 +610,9 @@ function syncStatus() {
 
 function zombieWeaponAvailable() {
   if (!api.hasItem) return null;
-  for (const id of ['bat', 'knife', 'extinguisher']) if (api.hasItem(id)) return id;
+  // Prefer the strongest weapon you actually carry; otherwise an earlier
+  // bat could silently override a later fire extinguisher.
+  for (const id of ['extinguisher', 'bat', 'knife']) if (api.hasItem(id)) return id;
   return null;
 }
 
@@ -839,6 +841,7 @@ export function startCombat(d, win, lose) {
   let best = 0;
   Object.keys(s.bonds).forEach(k => {
     if (k === 'mumu') return;
+    if (s.flags && (s.flags['dead_' + k] || (k === 'mira' && s.flags.miraDead))) return;
     if (s.bonds[k] > best) { best = s.bonds[k]; bondId = k; }
   });
   if (best < 3) bondId = null;

@@ -71,9 +71,11 @@ function stock(st) {
 function bond(id, n) { G.bond(id, n); }
 
 function clue(st, id) {
-  if (st.clues.indexOf(id) < 0) st.clues.push(id);
+  if (st.clues.indexOf(id) >= 0) return false;
+  st.clues.push(id);
   st.investigation += 1;
   G.doubt(1, 'school_' + id);
+  return true;
 }
 
 function hasClue(st, id) { return st.clues.indexOf(id) >= 0; }
@@ -119,13 +121,18 @@ function enoughEvidence(st) {
   if (hasClue(st, 'medicine')) anchors++;
   if (hasClue(st, 'timeline')) anchors++;
   if (hasClue(st, 'visitor')) anchors++;
-  if (hasClue(st, 'prediction') || hasClue(st, 'map')) anchors++;
-  if (hasClue(st, 'infectionWarning') || hasClue(st, 'missingFolder')) anchors++;
-  return st.investigation >= 6 && anchors >= 4;
+  if (hasClue(st, 'prediction')) anchors++;
+  if (hasClue(st, 'missingFolder') || hasClue(st, 'infectionWarning')) anchors++;
+  if (hasClue(st, 'secondVictim')) anchors++;
+  var miraLink = hasClue(st, 'miraPattern') || hasClue(st, 'miraAlibi');
+  return st.investigation >= 6 && miraLink && anchors >= 3;
 }
 
 function markSearch(st, id) { st.flags.searches[id] = true; }
 function searchDone(st, id) { return !!st.flags.searches[id]; }
+function hasEvacPreparation(st) {
+  return !!(st.flags.evacPrepared || st.flags.evacPlan || st.flags.reyesPrepared);
+}
 
 function setInfected(st) {
   if (st.flags.infectionRolled) return;
@@ -144,6 +151,24 @@ function setInfected(st) {
 
 function infectedName(st) { return st.infected ? nameOf(st, st.infected) : ''; }
 
+function resolveSecondDeath(st) {
+  if (st.flags.secondVictimResolved) return;
+  st.flags.secondVictimResolved = true;
+
+  // June is the ordinary first victim. If she already died, the second death
+  // belongs to a named minor survivor who had been sheltering in maintenance.
+  var id = st.flags.firstVictimId === 'june' ? 'custodian' : 'june';
+  st.flags.secondVictimId = id;
+  st.flags.secondVictimDead = true;
+  if (id === 'june') st.flags.dead_june = true;
+  st.flags.shelterCompromised = true;
+  clue(st, 'secondVictim');
+}
+
+function secondVictimName(st) {
+  return st.flags.secondVictimId === 'custodian' ? 'Mr. Dela Cruz, the night custodian' : 'June';
+}
+
 function resolveRomanceDeath(st) {
   if (st.flags.romanceResolved) return;
   st.flags.romanceResolved = true;
@@ -154,6 +179,7 @@ function resolveRomanceDeath(st) {
     // and get your partner out, forcing the killer to choose another victim.
     if (G.bondLevel(st.romance) >= 7 || st.flags.partnerProtection) {
       st.flags.partnerSaved = true;
+      st.flags.partnerProtection = true;
       st.flags.firstVictimId = 'june';
     } else {
       st.flags.partnerDead = true;
@@ -308,6 +334,47 @@ var stairZombie = {
     { a: 'dodge', side: 'left', t: 'The second infected reaches through the rail from your left. Move right.', ok: 'You clear the rail.', bad: 'Its fingers close around your wrist.' },
     { a: 'dodge', side: 'right', t: 'The third infected attacks from your right. Dodge left.', ok: 'You slip past.', bad: 'The attack knocks your breath out.' },
     { a: 'dodge', side: 'left', open: true, t: 'All three bunch together. Dodge right.', ok: 'They collide.', bad: 'You get pinned.' }
+  ]
+};
+
+var cafeteriaHordeZombie = {
+  mode: 'zombie', art: 'cafeteria', escapeGoal: 9, weaponDamage: 2, speed: 4700,
+  name: 'Cafeteria crowd — a dozen infected', poise: 9,
+  intro: 'The cafeteria doors give way and you finally see the scale of the outbreak: infected students spill between tables, more than you can count. You do not fight the crowd. You survive the one body that reaches you while the others close in.',
+  outro: 'You break through the service door. Behind you, the cafeteria is still filling. The problem was never one infected — it was how many were waiting behind it.',
+  tells: [
+    { a: 'dodge', side: 'left', t: 'A student vaults the table from your left. Dodge right.', ok: 'You slide past the table.', bad: 'You catch the corner.' },
+    { a: 'dodge', side: 'right', t: 'Two shapes cut you off from the right. Dodge left.', ok: 'You slip between them.', bad: 'You are almost boxed in.' },
+    { a: 'dodge', side: 'left', t: 'A whole row of bodies surges forward. Dodge right.', ok: 'The front one misses.', bad: 'The crowd compresses around you.' },
+    { a: 'dodge', side: 'right', t: 'The kitchen doors slam behind you. Dodge left.', ok: 'You keep moving.', bad: 'You lose the gap.' },
+    { a: 'dodge', side: 'left', open: true, t: 'The crowd bunches at the serving line. Dodge right.', ok: 'They jam against each other.', bad: 'You stumble into the bottleneck.' }
+  ]
+};
+
+var labHordeZombie = {
+  mode: 'zombie', art: 'lab', escapeGoal: 10, weaponDamage: 3, speed: 4550,
+  name: 'Science-wing surge — too many to count', poise: 10,
+  intro: 'Glass breaks all the way down the science wing. At least a dozen infected move between the lab benches. Only one reaches you at a time, but there are always more behind it.',
+  outro: 'You slam the fire door and hear hands hit the other side almost immediately. The school is no longer occupied by a few infected. Entire rooms are moving.',
+  tells: [
+    { a: 'dodge', side: 'right', t: 'An infected comes around the lab bench from your right. Dodge left.', ok: 'You clear the bench.', bad: 'Your shoulder clips the counter.' },
+    { a: 'dodge', side: 'left', t: 'A second rushes through the broken glass from your left. Dodge right.', ok: 'You find a clean lane.', bad: 'The glass forces you inward.' },
+    { a: 'dodge', side: 'right', t: 'The hallway fills behind it. Dodge left before the gap closes.', ok: 'You get through the door.', bad: 'The gap narrows around you.' },
+    { a: 'dodge', side: 'left', t: 'Two infected lunge almost together. Dodge right.', ok: 'They collide behind you.', bad: 'You are nearly pinned.' },
+    { a: 'dodge', side: 'right', open: true, t: 'The fire door starts to shut. Dodge left.', ok: 'You reach the threshold.', bad: 'You miss the timing.' }
+  ]
+};
+
+var facultyHordeZombie = {
+  mode: 'zombie', art: 'teacher', escapeGoal: 8, weaponDamage: 2, speed: 4650,
+  name: 'Faculty corridor surge', poise: 8,
+  intro: 'The faculty corridor is packed. Infected staff and students are pressing through the stairwell, far too many to clear. You do not stop to identify them. You only need one opening.',
+  outro: 'You reach the upper corridor and pull the door shut. There are still infected moving downstairs — enough that nobody in the group can pretend the school is only dealing with isolated cases anymore.',
+  tells: [
+    { a: 'dodge', side: 'left', t: 'A uniformed figure lunges from your left. Dodge right.', ok: 'You clear the doorway.', bad: 'The doorway catches you.' },
+    { a: 'dodge', side: 'right', t: 'Another infected cuts from the right. Dodge left.', ok: 'You slip through.', bad: 'You are forced back.' },
+    { a: 'dodge', side: 'left', t: 'The stairwell behind it is full. Dodge right.', ok: 'You keep the gap.', bad: 'You are almost surrounded.' },
+    { a: 'dodge', side: 'right', open: true, t: 'The corridor bunches at the landing. Dodge left.', ok: 'The crowd jams itself.', bad: 'You lose the opening.' }
   ]
 };
 
@@ -556,7 +623,9 @@ She looks at the windows and then at the students.
 
 “We leave before the door comes down.”
 
-She does not sound heroic. She sounds like a teacher who is terrified and has decided to be useful anyway.`,
+She does not sound heroic. She sounds like a teacher who is terrified and has decided to be useful anyway.
+
+From the corridor comes a sound you have not heard before: dozens of feet moving at once.`,
   choices: [
     { t: 'Take the corridor and head for the library.', do: function (st) { st.flags.routeLibrary = true; }, to: 'outbreak_library' },
     { t: 'Take the science wing.', do: function (st) { st.flags.routeScience = true; }, to: 'outbreak_science' },
@@ -674,6 +743,8 @@ Nobody says zombie.
 
 They say infected.
 
+From behind the library doors, you can hear movement in more than one corridor. The school is not losing one infected at a time. It is filling.
+
 They say this will pass.
 
 They are wrong.`,
@@ -725,7 +796,9 @@ The school has all five somewhere inside it. Every useful room is attached to a 
 
 Ms. Reyes says the group cannot solve everything in one morning.
 
-${stock(st)}`;
+${stock(st)}
+
+Outside the shelter, the sounds keep multiplying. A few infected have become groups, and groups have started becoming crowds.`;
   },
   choices: [
     { t: 'Raid the cafeteria.', do: function (st) { food(st, 2); markSearch(st, 'cafeteria'); G.addItem('canned', 1); }, to: 'day2_cafeteria' },
@@ -751,8 +824,31 @@ She looks embarrassed.
 
 “I knew people would call it wasteful.”`,
   choices: [
-    { t: 'Tell Aya you understand.', do: function (st) { bond('aya', 3); food(st, 1); G.addItem('canned'); }, to: 'day2_second_choice' },
-    { t: 'Tell her the group needs honesty now.', do: function (st) { bond('aya', 1); st.flags.ayaLedgerHonest = true; food(st, 2); }, to: 'day2_second_choice' }
+    { t: 'Tell Aya you understand and take the sealed food.', do: function (st) { bond('aya', 3); food(st, 1); G.addItem('canned'); }, to: 'day2_second_choice' },
+    { t: 'Tell her the group needs honesty now.', do: function (st) { bond('aya', 1); st.flags.ayaLedgerHonest = true; food(st, 2); }, to: 'day2_second_choice' },
+    { t: 'Push through the kitchen for more supplies.', do: function (st) { st.flags.cafeteriaHorde = true; st.flags.zombieCombat = true; }, to: 'day2_cafeteria_horde' }
+  ]
+};
+
+S.day2_cafeteria_horde = {
+  chapter: 'Tuesday — 7:18 a.m.',
+  combat: function () { return cafeteriaHordeZombie; }, win: 'day2_cafeteria_horde_after', lose: 'ending_zombie'
+};
+S.day2_cafeteria_horde_after = {
+  chapter: 'Tuesday — 7:24 a.m.',
+  text: `You get through the kitchen.
+
+The noise continues behind you.
+
+It is not three infected. It is not five. The cafeteria was full before the doors broke, and now the whole room is moving.
+
+Aya looks back once.
+
+“That many were inside?”
+
+Nobody answers.`,
+  choices: [
+    { t: 'Return to the library with what you have.', do: function (st) { food(st, 1); G.addItem('canned'); }, to: 'day2_second_choice' }
   ]
 };
 
@@ -1378,7 +1474,24 @@ ${r}`;
   choices: [
     { t: 'Search for the missing medicine.', do: function (st) { clue(st, 'medicine'); G.addItem('firstaid'); }, to: 'day4_night' },
     { t: 'Secure the doors instead.', do: function (st) { st.flags.doorsSecured = true; }, to: 'day4_night' },
-    { t: 'Follow whoever moved the medicine.', do: function (st) { clue(st, 'medicineMove'); clue(st, 'visitor'); st.flags.followedMedicine = true; G.addItem('flashlight'); }, to: 'day4_night' }
+    { t: 'Follow whoever moved the medicine.', do: function (st) { clue(st, 'medicineMove'); clue(st, 'visitor'); st.flags.followedMedicine = true; G.addItem('flashlight'); }, to: 'day4_night' },
+    { t: 'Check the science wing before dark.', do: function (st) { st.flags.zombieCombat = true; st.flags.labHordeSeen = true; }, to: 'day4_lab_horde' }
+  ]
+};
+
+S.day4_lab_horde = {
+  chapter: 'Thursday — 4:05 p.m.',
+  combat: function () { return labHordeZombie; }, win: 'day4_lab_horde_after', lose: 'ending_zombie'
+};
+S.day4_lab_horde_after = {
+  chapter: 'Thursday — 4:15 p.m.',
+  text: `The science wing is lost.
+
+You counted at least a dozen infected between the lab and the stairwell, and that was only what you could see.
+
+The group had been talking about isolated cases. The building is telling you otherwise.`,
+  choices: [
+    { t: 'Return to the library before dark.', to: 'day4_night' }
   ]
 };
 
@@ -1497,12 +1610,14 @@ S.day5_hub_three = {
     { t: 'Patrol with Eli.', do: function (st) { bond('eli', 2); st.flags.eliPatrol = true; }, to: 'day5_second_death' },
     { t: 'Reconstruct the timeline with Noah.', do: function (st) { bond('noah', 2); clue(st, 'noahTimeline'); }, to: 'day5_second_death' },
     { t: 'Ask Ms. Reyes about the medicine.', do: function (st) { bond('reyes', 2); clue(st, 'reyesMedicine'); }, to: 'day5_second_death' },
+    { t: 'Compare Mira’s warning with the timeline.', do: function (st) { clue(st, 'miraPattern'); st.flags.evidenceEcho = true; }, to: 'day5_second_death' },
     { t: 'Inspect the evidence board alone.', do: function (st) { G.shard('echo_evidence_board'); st.flags.evidenceEcho = true; }, to: 'day5_second_death' }
   ]
 };
 
 S.day5_second_death = {
   chapter: 'Friday — 11:03 a.m.',
+  onEnter: function (st) { resolveSecondDeath(st); },
   text: function (st) {
     var illness = '';
     if (st.infected && !alive(st, st.infected)) st.infected = '';
@@ -1515,15 +1630,15 @@ A door slams.
 
 Then silence.
 
-The victim had seen the first body.
+${secondVictimName(st)} is dead.
 
-There is still no bite.
+They had seen the first body and were helping track who entered the infirmary. There is still no bite.
 
 Three words are written on the wall:
 
 STOP LOOKING.
 
-The group turns toward you because you are the person who has been asking questions.${illness}`;
+The school has lost another person, and the killer has now shown you that the deaths are connected. The group turns toward you because you are the person who has been asking questions.${illness}`;
   },
   choices: [
     { t: 'Keep investigating.', do: function (st) { st.investigation += 2; }, to: 'day5_accusation' },
@@ -1548,9 +1663,9 @@ Mira looks frightened.
 
 You have a choice that can ruin the group even if you are correct.`,
   choices: [
-    { t: 'Accuse Aya.', do: function (st) { accuse(st, 'aya'); }, to: 'day5_accuse_result' },
-    { t: 'Accuse Eli.', do: function (st) { accuse(st, 'eli'); }, to: 'day5_accuse_result' },
-    { t: 'Accuse Noah.', do: function (st) { accuse(st, 'noah'); }, to: 'day5_accuse_result' },
+    { t: 'Accuse Aya.', if: function (st) { return alive(st, 'aya'); }, do: function (st) { accuse(st, 'aya'); }, to: 'day5_accuse_result' },
+    { t: 'Accuse Eli.', if: function (st) { return alive(st, 'eli'); }, do: function (st) { accuse(st, 'eli'); }, to: 'day5_accuse_result' },
+    { t: 'Accuse Noah.', if: function (st) { return alive(st, 'noah'); }, do: function (st) { accuse(st, 'noah'); }, to: 'day5_accuse_result' },
     { t: 'Accuse Mira.', if: function (st) { return !st.flags.miraDead; }, do: function (st) { accuse(st, 'mira'); }, to: 'day5_accuse_result' },
     { t: 'Accuse nobody yet.', do: function (st) { st.flags.noPublicAccuse = true; }, to: 'day6_morning' }
   ]
@@ -1721,7 +1836,7 @@ The murder mystery now has a survival problem inside it.`;
 };
 S.day6_infection_breakout = {
   chapter: 'Saturday — 10:46 a.m.',
-  combat: function () { return stairZombie; }, win: 'day6_evening', lose: 'ending_zombie'
+  combat: function () { return facultyHordeZombie; }, win: 'day6_evening', lose: 'ending_zombie'
 };
 
 S.day6_evening = {
@@ -1745,7 +1860,7 @@ Not yet.
 ${stock(st)}`;
   },
   choices: [
-    { t: 'Prepare an evacuation route with Aya and Eli.', do: function (st) { bond('aya', 1); bond('eli', 1); st.flags.evacPlan = true; }, to: 'day7_morning' },
+    { t: 'Prepare an evacuation route with Aya and Eli.', do: function (st) { bond('aya', 1); bond('eli', 1); st.flags.evacPlan = true; st.flags.evacPrepared = true; }, to: 'day7_morning' },
     { t: 'Prepare the loading dock with Noah.', do: function (st) { bond('noah', 2); st.flags.loadingPlan = true; st.flags.loadingPrepared = true; }, to: 'day7_morning' },
     { t: 'Prepare the group with Ms. Reyes.', do: function (st) { bond('reyes', 2); st.flags.reyesPlan = true; st.flags.reyesPrepared = true; }, to: 'day7_morning' },
     { t: 'Stay near Mira.', if: function (st) { return !st.flags.miraDead; }, do: function (st) { bond('mira', 2); st.mira += 1; }, to: 'day7_morning' }
@@ -1757,9 +1872,9 @@ ${stock(st)}`;
 
 S.day7_morning = {
   chapter: 'Sunday — 6:42 a.m.',
-  onEnter: function (st) { step(st, 7); },
+  onEnter: function (st) { step(st, 7); resolveSecondDeath(st); },
   redirect: function (st) { return (st.food <= 0 && st.water <= 0) ? 'ending_starved_scene' : null; },
-  text: `The helicopter returns after sunrise.
+  text: function (st) { return `The helicopter returns after sunrise.
 
 It does not land.
 
@@ -1783,7 +1898,9 @@ DO NOT APPROACH IF BITTEN.
 
 For the first time, the outside world has given you a destination.
 
-It has not given you a guarantee.`,
+It has not given you a guarantee.
+
+${st.flags.shelterCompromised ? 'After the second death, nobody believes the library is safe anymore. The evacuation notice did not come too soon.' : ''}`; },
   choices: [
     { t: 'Follow the marked route.', do: function (st) { st.flags.markedExit = true; }, to: 'day7_marked_route' },
     { t: 'Use Noah’s loading-dock route.', do: function (st) { st.flags.loadingExit = true; }, to: 'day7_loading_route' },
@@ -1809,19 +1926,17 @@ The timing.
 
 The visitor log.
 
-The map.
+${hasClue(st, 'miraPattern') ? 'Mira’s warning and her strange knowledge of the infirmary layout.' : 'The map and Mira’s prediction.'}
 
-Mira’s prediction.
-
-The bodies.
+The bodies: ${victimLabel(st)} and ${secondVictimName(st)}.
 
 One final confrontation can happen before you leave.`;
   },
   choices: [
     { t: 'Name Mira.', if: function (st) { return !st.flags.miraDead && enoughEvidence(st); }, do: function (st) { accuse(st, 'mira'); }, to: 'final_mira' },
-    { t: 'Name Aya.', do: function (st) { accuse(st, 'aya'); }, to: 'final_vote' },
-    { t: 'Name Eli.', do: function (st) { accuse(st, 'eli'); }, to: 'final_vote' },
-    { t: 'Name Noah.', do: function (st) { accuse(st, 'noah'); }, to: 'final_vote' },
+    { t: 'Name Aya.', if: function (st) { return alive(st, 'aya'); }, do: function (st) { accuse(st, 'aya'); }, to: 'final_vote' },
+    { t: 'Name Eli.', if: function (st) { return alive(st, 'eli'); }, do: function (st) { accuse(st, 'eli'); }, to: 'final_vote' },
+    { t: 'Name Noah.', if: function (st) { return alive(st, 'noah'); }, do: function (st) { accuse(st, 'noah'); }, to: 'final_vote' },
     { t: 'Admit you do not know.', do: function (st) { st.flags.unknownKiller = true; }, to: 'day7_final_choice' },
     { t: 'Leave now and keep the mystery unsolved.', if: function (st) { return !!st.flags.miraDead; }, do: function (st) { st.flags.unknownKiller = true; }, to: 'ending_unsolved_scene' }
   ]
@@ -1830,15 +1945,16 @@ One final confrontation can happen before you leave.`;
 S.day7_marked_route = {
   chapter: 'Sunday — 7:02 a.m.',
   text: function (st) {
-    var ready = st.flags.evacPrepared || st.flags.reyesPrepared;
+    var ready = hasEvacPreparation(st);
+    var routeNote = st.flags.evacPrepared || st.flags.evacPlan ? 'Aya and Eli recognize the choke points because you prepared the marked route.' : st.flags.reyesPrepared ? 'Ms. Reyes has already briefed the group on the choke points and fallback positions.' : 'The route is exposed and unfamiliar. Every corner becomes a decision.';
     return `You follow the painted arrows from the evacuation notice.
 
-${ready ? 'Aya, Eli and Ms. Reyes recognize the choke points because you prepared for exactly this route.' : 'The route is exposed and unfamiliar. Every corner becomes a decision.'}
+${routeNote}
 
 A metal shutter is half open ahead.`;
   },
   choices: [
-    { t: 'Go through together.', do: function (st) { st.flags.routeTogether = true; }, to: function (st) { return st.flags.evacPrepared ? 'helicopter_event' : 'final_escape'; } },
+    { t: 'Go through together.', do: function (st) { st.flags.routeTogether = true; }, to: function (st) { return hasEvacPreparation(st) ? 'helicopter_event' : 'final_escape'; } },
     { t: 'Take the service corridor around it.', do: function (st) { st.flags.serviceDetour = true; }, to: 'final_escape' }
   ]
 };
@@ -1905,7 +2021,7 @@ She asks whether you trust her.`,
 S.final_escape = {
   chapter: 'Sunday — 7:55 a.m.',
   onEnter: function (st) { st.flags.zombieCombat = true; },
-  combat: function () { return Object.assign({}, stairZombie, { art: 'outdoor', name: 'Infected blocking the service road' }); }, win: 'final_escape_after', lose: 'ending_zombie'
+  combat: function () { return Object.assign({}, stairZombie, { art: 'outdoor', name: 'Infected crowd blocking the service road', escapeGoal: 9, intro: 'The service road is not blocked by one infected. A crowd is spilling through the gate, enough that stopping to fight would mean being surrounded. Find the gaps and keep the group moving.' }); }, win: 'final_escape_after', lose: 'ending_zombie'
 };
 
 S.final_escape_after = {
@@ -1963,7 +2079,7 @@ The murder mystery ends as a question instead of an answer.`;
 
 For once, she does not deny anything.
 
-${first} was the first person she chose to remove from your world. The medicine trail was the second line she tried to erase.
+${first} was the first person she chose to remove from your world. ${secondVictimName(st)} was the second. The medicine trail was the line she tried to erase.
 
 After that, fear did the rest.
 
