@@ -4,10 +4,12 @@
 
 import { api } from './registry.js';
 import { sfx, music, audio, unlock } from './audio.js';
-import { ENEMY_ART, PORTRAIT } from './art.js';
+import { ENEMY_ART, ZOMBIE_ART, PORTRAIT } from './art.js';
 
-const SAVE = 'suddendeath.save.v5';
-const JOURNAL = 'suddendeath.journal.v5';
+const SAVE = 'suddendeath.save.v8';
+const LEGACY_SAVE = 'suddendeath.save.v7';
+const JOURNAL = 'suddendeath.journal.v8';
+const LEGACY_JOURNAL = 'suddendeath.journal.v7';
 const PREFS = 'suddendeath.prefs.v1';
 
 /* ------------------------------------------------------------------ */
@@ -124,8 +126,11 @@ export const store = {
     log: '', glimpse: 'idle', dir: null, clarity: false, art: '',
     timerFrac: 1, timerOn: false, danger: false,
     canEcho: false, over: false, continueLabel: '', verbsOn: false,
+    mode: 'classic', weapon: false, weaponLabel: '', weaponDamage: 0, objective: '',
+    grabActive: false, grabCount: 0, grabGoal: 10, grabFrac: 1, weaponOpening: false,
+    escapeProgress: 0, escapeGoal: 0,
     statuses: [], locks: { strike: 0, parry: 0, jump: 0, heal: 0 },
-    verbOpen: { strike: true, parry: true, jump: true, heal: true },
+    verbOpen: { strike: true, parry: true, jump: true, heal: true, dodge: true, bonk: true },
     stagger: false, reeling: false, rail: []
   },
   hud: { ember: 0, emberCap: 5, scars: 0, breath: 0, breathCap: 8, echoes: 0, below: false },
@@ -161,13 +166,23 @@ export function setPref(k, v) {
 }
 
 function save() { if (store.state) lsSet(SAVE, JSON.stringify(store.state)); }
-function loadSave() { try { const r = lsGet(SAVE); return r ? JSON.parse(r) : null; } catch (e) { return null; } }
-function journal() { try { return JSON.parse(lsGet(JOURNAL) || '{}'); } catch (e) { return {}; } }
+function loadSave() {
+  try {
+    const r = lsGet(SAVE) || lsGet(LEGACY_SAVE);
+    return r ? JSON.parse(r) : null;
+  } catch (e) { return null; }
+}
+function journal() {
+  try {
+    const r = lsGet(JOURNAL) || lsGet(LEGACY_JOURNAL) || '{}';
+    return JSON.parse(r);
+  } catch (e) { return {}; }
+}
 
 export function refreshSaveInfo() {
   const s = loadSave();
   store.hasSave = !!s;
-  store.saveLabel = s ? (s.flags && s.flags.below ? 'Continue — the Below' : 'Continue — school, day ' + (s.day || 1)) : '';
+  store.saveLabel = s ? 'Continue — school, day ' + (s.day || 1) : '';
   emit();
 }
 
@@ -176,7 +191,7 @@ export function refreshSaveInfo() {
 
 export function freshState(name) {
   return {
-    name: name || 'you', scene: 'school_d1_a', chapter: 'Monday', day: 1,
+    name: name || 'you', scene: 'school_d0', chapter: 'Sunday night', day: 1,
     devotion: 0, passive: 0, noticed: 0,
     ember: 5, emberCap: 5, scars: 0, breath: 6, breathCap: 8,
     doubt: 0, echoes: 0, fingers: 0,
@@ -247,7 +262,8 @@ Object.defineProperty(api, 'state', { get: () => store.state, configurable: true
 /* ------------------------------------------------------------------ */
 /* checkpoints — every turning point is a place you can be put back to */
 
-const CHECK = 'suddendeath.checkpoint.v5';
+const CHECK = 'suddendeath.checkpoint.v6';
+const LEGACY_CHECK = 'suddendeath.checkpoint.v5';
 
 api.checkpoint = function (label) {
   const s = store.state; if (!s) return;
@@ -258,10 +274,13 @@ api.checkpoint = function (label) {
   toast('Checkpoint — ' + label);
 };
 
-export function hasCheckpoint() { return !!lsGet(CHECK); }
+export function hasCheckpoint() { return !!(lsGet(CHECK) || lsGet(LEGACY_CHECK)); }
 
 export function checkpointLabel() {
-  try { return JSON.parse(lsGet(CHECK)).label; } catch (e) { return ''; }
+  try {
+    const raw = lsGet(CHECK) || lsGet(LEGACY_CHECK);
+    return raw ? (JSON.parse(raw).label || '') : '';
+  } catch (e) { return ''; }
 }
 
 api.restoreCheckpoint = function () { restoreCheckpoint(); };
@@ -270,11 +289,15 @@ api.lastCheckpoint = function () { return checkpointLabel() || 'the last turning
 
 export function restoreCheckpoint() {
   let cp;
-  try { cp = JSON.parse(lsGet(CHECK)); } catch (e) { return; }
+  try {
+    const raw = lsGet(CHECK) || lsGet(LEGACY_CHECK);
+    cp = JSON.parse(raw);
+  } catch (e) { return; }
   if (!cp) return;
   stopTimer();
   C.active = false; C.continueLabel = '';
   store.state = migrate(JSON.parse(JSON.stringify(cp.state)));
+  store.canRestore = true;
   api.applyPools(store.state);
   syncHud();
   go(cp.scene);
@@ -332,7 +355,7 @@ export function skip() {
 function moodFor(sceneId) {
   const s = store.state;
   if (!s) return 'title';
-  if (/^lb_|^school_d5|^school_d6|^to_below/.test(sceneId)) return 'dread';
+  if (/^outbreak_|^day4_|^day5_|^murder_|^final_|^school_d5|^school_d6/.test(sceneId)) return 'dread';
   if (!s.flags.below) return 'school';
   return 'below';
 }
@@ -453,6 +476,7 @@ let rand = null, bag = [], drawn = 0, curT = 0, nxtT = 0, lastT = -1, shownT = -
 
 /* statuses */
 let stagger = 0, reel = 0, timeouts = 0, dmgMul = 1, speedMul = 1;
+let weaponOpening = false;
 let allyLines = [];
 
 const C = store.combat;
@@ -474,6 +498,8 @@ function speedFor(t) {
 function stopTimer() {
   C.timerOn = false; C.danger = false;
   if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+  if (grabRafId) { cancelAnimationFrame(grabRafId); grabRafId = null; }
+  C.grabActive = false;
 }
 
 function startTimer() {
@@ -578,7 +604,107 @@ function syncStatus() {
   C.locks = { strike: 0, parry: 0, jump: 0, heal: 0 };
   C.stagger = stagger > 0;
   C.reeling = reel > 0;
-  C.verbOpen = { strike: verbOpen('strike'), parry: verbOpen('parry'), jump: verbOpen('jump'), heal: verbOpen('heal') };
+  C.verbOpen = { strike: verbOpen('strike'), parry: verbOpen('parry'), jump: verbOpen('jump'), heal: verbOpen('heal'), dodge: !weaponOpening, bonk: !!(C.weapon && weaponOpening) };
+  C.weaponOpening = weaponOpening;
+}
+
+function zombieWeaponAvailable() {
+  if (!api.hasItem) return null;
+  for (const id of ['bat', 'knife', 'extinguisher']) if (api.hasItem(id)) return id;
+  return null;
+}
+
+function weaponProfile(id) {
+  return ({
+    bat: { label: 'Baseball bat', damage: 2, verb: 'Bonk', note: 'balanced, reliable', parry: true },
+    knife: { label: 'Kitchen knife', damage: 1, verb: 'Slash', note: 'fast, low damage', parry: true },
+    extinguisher: { label: 'Fire extinguisher', damage: 3, verb: 'Smash', note: 'heavy, high damage', parry: true }
+  })[id] || { label: 'weapon', damage: 1, verb: 'Strike', note: 'improvised', parry: true };
+}
+
+function syncZombieWeapon() {
+  C.weapon = zombieWeaponAvailable();
+  const w = weaponProfile(C.weapon);
+  C.weaponLabel = C.weapon ? w.label : '';
+  C.weaponDamage = C.weapon ? w.damage : 0;
+  return w;
+}
+
+function oppositeSide(side) {
+  return side === 'left' ? 'right' : 'left';
+}
+
+let grabRafId = null, grabEnd = 0, grabTimerLen = 3000;
+
+function stopGrabTimer() {
+  C.grabActive = false;
+  if (grabRafId) { cancelAnimationFrame(grabRafId); grabRafId = null; }
+}
+
+function startGrabTimer() {
+  stopTimer();
+  grabTimerLen = 3000;
+  grabEnd = performance.now() + grabTimerLen;
+  C.grabActive = true;
+  C.grabCount = 0;
+  C.grabGoal = 6;
+  C.grabFrac = 1;
+  C.timerOn = true;
+  C.danger = true;
+  C.verbsOn = false;
+  let warned = false;
+  const loop = () => {
+    if (!C.grabActive) return;
+    if (paused) {
+      grabEnd = performance.now() + C.grabFrac * grabTimerLen;
+      grabRafId = requestAnimationFrame(loop);
+      return;
+    }
+    const left = grabEnd - performance.now();
+    C.grabFrac = Math.max(0, left / grabTimerLen);
+    C.timerFrac = C.grabFrac;
+    if (C.grabFrac < 0.35 && !warned) { warned = true; sfx.warn(); emit(); }
+    tickEmit();
+    if (left <= 0) {
+      stopGrabTimer(); C.timerOn = false; C.danger = false;
+      grabTimeout();
+      return;
+    }
+    grabRafId = requestAnimationFrame(loop);
+  };
+  grabRafId = requestAnimationFrame(loop);
+}
+
+function grabSuccess() {
+  if (!C.grabActive || over) return;
+  stopGrabTimer();
+  C.timerOn = false; C.danger = false;
+  C.verbsOn = false;
+  sfx.good();
+  C.grabCount = C.grabGoal;
+  nextZombieExchange('||You tear free. You do not wait to see whether it can grab you again.||');
+}
+
+function grabTimeout() {
+  if (over) return;
+  C.timerOn = false; C.danger = false; C.verbsOn = false;
+  endClarity();
+  sfx.timeout();
+  damageSelf(3, '||You do not get free in time. The infected locks onto you and you feel teeth scrape fabric.||', true);
+}
+
+function nextZombieExchange(msg) {
+  weaponOpening = false; C.weaponOpening = false;
+  curT = nxtT; nxtT = drawTell(); shownT = curT;
+  setTimeout(() => present(msg || ''), 300);
+}
+
+export function grabTap() {
+  if (over || !C.grabActive || store.screen !== 'combat') return;
+  C.grabCount = Math.min(C.grabGoal, C.grabCount + 1);
+  sfx.click();
+  if (C.grabCount >= C.grabGoal) grabSuccess();
+  else emit();
 }
 
 /* ---------- the item rail ---------- */
@@ -610,9 +736,63 @@ export function syncRail() {
 
 /* ---------- presenting a tell ---------- */
 
+function presentZombie(prefix) {
+  tickStatuses();
+  const t = currentTell();
+  curDir = t.side || null;
+  let body = prefix ? prefix + '\n\n' : '';
+  syncZombieWeapon();
+  if (weaponOpening) {
+    const w = weaponProfile(C.weapon);
+    body += '@@The parry lands. The infected is off-balance and exposed.@@\n\n';
+    body += '!!STRIKE NOW — press SPACE or use ' + w.verb + '.!!\n\n';
+    body += '~~You have a short, safe opening. Missing it is safe; the opening simply closes.~~';
+    C.glimpse = 'open';
+    C.dir = null;
+    C.clarity = false;
+    C.canEcho = false;
+    C.verbsOn = false;
+    C.mode = 'zombie';
+    C.objective = w.label + ' · strike the exposed infected';
+    syncStatus(); syncRail(); syncHud();
+    typeOut(body, () => {
+      C.verbsOn = true;
+      startTimer();
+      emit();
+    });
+    return;
+  }
+  if (C.weapon) {
+    const w = weaponProfile(C.weapon);
+    body += '~~You have the ' + w.label.toLowerCase() + '. Parry the incoming side. A correct parry creates a safe counterattack.~~\n\n';
+  } else {
+    body += '%%No weapon. Read the attack and dodge the opposite side. A wrong direction means it gets hold of you.%%\n\n';
+  }
+  body += t.t;
+  if (t.a === 'dodge') {
+    if (!C.weapon) body += '\n\n~~Attack from ' + t.side + '. Dodge ' + oppositeSide(t.side) + '.~~';
+    else body += '\n\n~~Attack from ' + t.side + '. Parry the same side. Wrong side = it grabs you.~~';
+  }
+  C.glimpse = 'lunge';
+  C.dir = curDir;
+  C.clarity = false;
+  C.canEcho = false;
+  C.verbsOn = false;
+  C.mode = 'zombie';
+  C.objective = C.weapon ? (C.weaponLabel + ' · parry, then strike') : ('Survive: ' + C.escapeProgress + ' / ' + C.escapeGoal + ' clean escapes.');
+  C.grabActive = false;
+  syncStatus(); syncRail(); syncHud();
+  typeOut(body, () => {
+    C.verbsOn = true;
+    startTimer();
+    emit();
+  });
+}
+
 function present(prefix) {
   tickStatuses();
   const t = currentTell();
+  if (def && def.mode === 'zombie') return presentZombie(prefix);
   curDir = t.a === 'parry' ? DIRS[Math.floor(rand() * DIRS.length)] : null;
   let body = prefix ? prefix + '\n\n' : '';
   if (stagger > 0) body += '%%You are not set. Nothing you own is where you left it. Jump clear of it \u2014 that is the only door left open.%%\n\n';
@@ -649,6 +829,7 @@ export function startCombat(d, win, lose) {
   winTo = win; loseTo = lose;
   streak = 0; clarity = false; hits = 0; drawn = 0; bag = []; lastT = -1; shownT = -1;
   stagger = 0; reel = 0; timeouts = 0; dmgMul = 1; speedMul = 1; allyLines = [];
+  weaponOpening = false;
   bondUsed = false; peekNext = false; over = false; paused = false;
   bondId = null;
 
@@ -683,10 +864,17 @@ export function startCombat(d, win, lose) {
   store.screen = 'combat';
   store.art = '';
   C.active = true; C.over = false; C.name = def.name;
-  C.art = ENEMY_ART[def.art] || ENEMY_ART.husk;
-  C.poiseMax = def.poise; setPoise(def.poise);
+  C.art = def.mode === 'zombie' ? (ZOMBIE_ART[def.art] || ZOMBIE_ART.hallway) : (ENEMY_ART[def.art] || ENEMY_ART.husk);
   C.glimpse = 'idle'; C.clarity = false; C.continueLabel = '';
   C.timerOn = false; C.timerFrac = 1; C.verbsOn = false;
+  C.mode = def.mode || 'classic';
+  if (C.mode === 'zombie') syncZombieWeapon();
+  else { C.weapon = false; C.weaponLabel = ''; C.weaponDamage = 0; }
+  C.poiseMax = (def.mode === 'zombie' && !C.weapon) ? 0 : def.poise; setPoise(def.poise);
+  C.grabActive = false; C.grabCount = 0; C.grabGoal = def.grabGoal || 10; C.grabFrac = 1;
+  weaponOpening = false; C.weaponOpening = false;
+  C.escapeProgress = 0; C.escapeGoal = def.escapeGoal || 0;
+  C.objective = C.mode === 'zombie' ? (C.weapon ? 'Drop the infected.' : ('Survive: 0 / ' + C.escapeGoal + ' clean escapes.')) : '';
   C.statuses = []; C.rail = [];
   music.mood(def.poise >= 12 ? 'boss' : def.poise >= 8 ? 'boss' : 'combat');
 
@@ -702,6 +890,11 @@ export function startCombat(d, win, lose) {
 
 function timeout() {
   if (over) return;
+  if (weaponOpening) {
+    weaponOpening = false; C.weaponOpening = false; C.verbsOn = false;
+    sfx.warn();
+    return nextZombieExchange('||The opening closes. You miss the chance to strike, but the parry kept you safe.||');
+  }
   C.verbsOn = false;
   endClarity();
   timeouts++;
@@ -712,6 +905,7 @@ function timeout() {
 }
 
 function damageSelf(dmg, msg, causesStagger) {
+  stopGrabTimer();
   if (reel > 0) {
     reel = 0;
     return nextExchange(msg + '\n\n||It is too far back to finish it. The blow goes through the space where you would have been standing if either of you had been having a good night.||');
@@ -738,9 +932,78 @@ function damageSelf(dmg, msg, causesStagger) {
 
 /* ---------- the four verbs ---------- */
 
+function zombieVerb(v, dir) {
+  if (over || C.grabActive || !C.verbsOn) return;
+  C.verbsOn = false;
+  C.canEcho = false;
+  stopTimer();
+  const t = currentTell();
+  const s = store.state;
+
+  // A weapon gives you a real counterattack: parry the incoming side,
+  // then strike during the safe opening. Missing the opening is harmless.
+  if (C.weapon) {
+    if (weaponOpening && v === 'bonk') {
+      const dmg = C.weaponDamage || def.weaponDamage || 2;
+      setPoise(poise - dmg);
+      s.breath = Math.min(s.breathCap, s.breath + 1);
+      weaponOpening = false; C.weaponOpening = false;
+      sfx.good();
+      const w = weaponProfile(C.weapon);
+      if (poise <= 0) return finishZombie('||The ' + w.label.toLowerCase() + ' connects cleanly. The infected folds.||');
+      return nextZombieExchange('||You ' + w.verb.toLowerCase() + ' it while it is exposed. It staggers back, and you reset your stance.||');
+    }
+    if (v === 'parry' && t.a === 'dodge' && dir === t.side) {
+      s.breath = Math.min(s.breathCap, s.breath + 1);
+      const w = weaponProfile(C.weapon);
+      sfx.good();
+      weaponOpening = true;
+      C.weaponOpening = true;
+      C.glimpse = 'open';
+      return presentZombie('||You catch the incoming arm with the ' + w.label.toLowerCase() + '. It reels back.||');
+    }
+    // Wrong parry direction means the infected gets both hands on you.
+    if (v === 'parry' && t.a === 'dodge') {
+      C.glimpse = 'charge';
+      return startGrabTimer();
+    }
+    // Do not let an early strike bypass the parry/opening loop.
+    endClarity();
+    C.glimpse = 'hit';
+    return damageSelf(2, '||You swing at the wrong moment. The infected slips inside your reach and grabs you.||', true);
+  }
+
+  // Unarmed: correct dodge is safe; wrong direction causes a grab QTE.
+  if (v === 'dodge' && t.a === 'dodge' && dir === oppositeSide(t.side)) {
+    s.breath = Math.min(s.breathCap, s.breath + 1);
+    C.escapeProgress += 1;
+    C.objective = 'Survive: ' + C.escapeProgress + ' / ' + C.escapeGoal + ' clean escapes.';
+    sfx.good();
+    if (C.escapeProgress >= C.escapeGoal) return finishZombie('||You finally find the gap. You run. The infected follows for a few steps, then loses you in the next corridor.||');
+    return nextZombieExchange('||You dodge ' + dir + '. It misses you by inches. Keep moving.||');
+  }
+
+  if (v === 'dodge' && t.a === 'dodge') {
+    C.glimpse = 'charge';
+    return startGrabTimer();
+  }
+
+  endClarity(); C.glimpse = 'hit';
+  return damageSelf(2, '||You hesitate instead of moving. The infected closes the distance and gets hold of you.||', true);
+}
+
+function finishZombie(msg) {
+  over = true; C.over = true; C.active = false; weaponOpening = false; C.weaponOpening = false; stopTimer();
+  C.glimpse = 'down';
+  store.state.breath = store.state.breathCap;
+  syncHud(); syncStatus();
+  typeOut(msg + '\n\n' + (def.outro || 'You survive the encounter.'), () => { C.continueLabel = 'Go on'; emit(); });
+}
+
 export function verb(v, dir) {
-  if (over || !C.verbsOn) { skip(); return; }
+  if (over || (!C.verbsOn && !(def && def.mode === 'zombie' && C.grabActive))) { skip(); return; }
   if (store.typing) { skip(); return; }
+  if (def && def.mode === 'zombie') return zombieVerb(v, dir);
   if (!verbOpen(v)) { sfx.warn(); return; }
 
   C.verbsOn = false; C.canEcho = false;
@@ -823,7 +1086,7 @@ export function verb(v, dir) {
 }
 
 function finish(msg) {
-  over = true; C.over = true; C.active = false; stopTimer();
+  over = true; C.over = true; C.active = false; weaponOpening = false; C.weaponOpening = false; stopTimer();
   C.glimpse = 'down';
   if (hits >= 3) { api.scar(); msg += '\n\n%%Something in you does not come back all the way. It never will.%%'; }
   store.state.breath = store.state.breathCap;
@@ -872,6 +1135,7 @@ function showEnding(key) {
   j[key] = { at: Date.now(), note: colour || (j[key] && j[key].note) || '' };
   lsSet(JOURNAL, JSON.stringify(j));
   lsDel(SAVE);
+  lsDel(LEGACY_SAVE);
   store.screen = 'ending';
   store.hasSave = false;
   music.mood('ending');
@@ -1000,7 +1264,7 @@ export function beginRun(name) {
   api.applyPools(s);
   store.state = s;
   save();
-  go('school_d1_a');
+  go('school_d0');
 }
 
 function migrate(s) {
@@ -1008,6 +1272,13 @@ function migrate(s) {
   if (!s.apostles) s.apostles = {};
   if (!s.told) s.told = {};
   if (typeof s.fights !== 'number') s.fights = 0;
+  if (!s.flags) s.flags = {};
+  if (!s.clues) s.clues = [];
+  if (!s.inv) s.inv = [];
+  if (!s.bonds) s.bonds = {};
+  if (typeof s.food !== 'number') s.food = 0;
+  if (typeof s.water !== 'number') s.water = 0;
+  s.resources = s.resources || { food: s.food, water: s.water };
   return s;
 }
 
@@ -1032,10 +1303,15 @@ export function toTitle() {
 
 export function openMenu() {
   const p = store.prefs;
+  const checkpoint = hasCheckpoint() ? checkpointLabel() : '';
+  const resume = checkpoint
+    ? '<div class="row"><h4>Restore checkpoint</h4><p>Return to <b>' + esc(checkpoint) + '</b> without discarding the rest of this run.</p><button class="use" data-a="restore">Restore</button></div>'
+    : '<div class="row"><h4>Checkpoints</h4><p>No turning point is available yet. One appears after a major survival beat.</p></div>';
   openPanel({
     kind: 'menu', title: 'Menu',
     html:
       '<div class="row"><h4>Endings found</h4><p>What this run and every run before it turned into.</p><button class="use" data-a="journal">Open</button></div>' +
+      resume +
       '<div class="row"><h4>Slower timer</h4><p>Gives you about three quarters again as long to read each tell. Currently ' + (p.slowTimer ? 'on' : 'off') + '.</p><button class="use" data-a="slow">Turn ' + (p.slowTimer ? 'off' : 'on') + '</button></div>' +
       '<div class="row"><h4>Music</h4><p>Generated live, no files. Currently ' + (p.music ? 'on' : 'off') + '.</p><button class="use" data-a="music">Turn ' + (p.music ? 'off' : 'on') + '</button></div>' +
       '<div class="row"><h4>All sound</h4><p>Currently ' + (p.muted ? 'muted' : 'on') + '.</p><button class="use" data-a="mute">' + (p.muted ? 'Unmute' : 'Mute') + '</button></div>' +
@@ -1048,10 +1324,10 @@ export function openHelp() {
     kind: 'help', title: 'How to play',
     html: '<div class="help">' +
       '<p><b>Read.</b> Tap or press space to finish a line early. Number keys pick choices. The game never tells you which choices mattered, and most of the ones that matter do not look like they do.</p>' +
-      '<p><b>Fight by reading.</b> No dice anywhere. Every enemy tells you what it is about to do \u2014 in words, and in the shape it makes above the text \u2014 and the same tell always has the same right answer. You have two to four seconds to answer it. That is not long.</p>' +
-      '<p><b>Strike</b> (space) when it is open; it hurts twice as much as anything else, and it leaves you open while you do it.</p>' +
-      '<p><b>Parry</b> (arrow keys \u2014 left, up, right) is a timed block in one of three directions. The text always tells you which side it is coming from. Block the wrong side and it counts as a full miss, same as guessing wrong entirely.</p>' +
-      '<p><b>Jump</b> (down arrow) is a dodge, and it is the only answer to anything the game tells you flatly cannot be parried. It will say so, in the text, every time \u2014 there is no hidden tell for this. Try to parry one of these anyway and it hurts worse than a normal miss.</p>' +
+      '<p><b>Fight by reading.</b> No dice anywhere. Every enemy tells you what it is about to do — in words, and in the shape it makes above the text — and the same tell always has the same right answer. You have only a few seconds to react. That is not long.</p>' +
+      '<p><b>Zombie fights are different.</b> Unarmed, you cannot kill an infected. When it attacks from your left, dodge right. When it attacks from your right, dodge left. Survive enough clean escapes and you get through.</p>' +
+      '<p><b>Wrong directions cause grabs.</b> A zombie does not randomly start a grab. If you dodge or parry the wrong side, it gets hold of you; then press <b>Space</b> six times before the three-second timer runs out.</p>' +
+      '<p><b>Weapons give you an advantage.</b> Parry the incoming side with the weapon, then you get a short, safe opening to <b>Bonk</b>, <b>Slash</b>, or <b>Smash</b>. A wrong parry direction causes a grab. Missing the weapon opening costs the chance, not health.</p>' +
       '<p><b>Heal</b> (Ctrl) only when it has stepped back \u2014 it mends one ember and costs breath, and misreading it hurts as much as any other miss.</p>' +
       '<p><b>Every miss costs you, and every miss staggers you.</b> There is no verb left that absorbs a wrong read for free \u2014 not any more. A miss is a real wound and a bad position, both at once.</p>' +
       '<p><b>Staggered.</b> One wrong read, or the clock running out on you, and everything but Jump goes dark for that beat. Jumping clear is free and clears it. Standing there and trying anything else \u2014 or freezing \u2014 hits you again and leaves you staggered.</p>' +
@@ -1060,9 +1336,12 @@ export function openHelp() {
       '<p><b>Clarity.</b> Three correct reads in a row without Heal and the prose goes plain, the clock loosens slightly, a clean read gives extra breath, and Strike hits harder still. One mistake ends it.</p>' +
       '<p><b>Your bag is on the screen.</b> Items sit under the verbs in a fight and under the choices out of one. A glowing one is the game telling you now would be the moment. Using something in a fight costs you the exchange \u2014 you take a free hit\'s worth of risk instead of a read.</p>' +
       '<p><b>Echoes</b> are mask shards found off the path. Spend one to feel what a choice costs, or to see the enemy\'s next move early.</p>' +
-      '<p><b>Turning points save themselves.</b> Fall in the Below and you can be put back to the last one. It costs something, but it does not cost the run.</p>' +
+      '<p><b>Turning points save themselves.</b> At major survival beats you can be put back to the last checkpoint. It costs something, but it does not erase the run.</p>' +
+      '<p><b>Infection is not the same as a bite.</b> On some runs one of the survivors may develop fever, shaking or confusion without an obvious wound. You can quarantine them, hide the symptoms, or gamble that it is nothing.</p>' +
+      '<p><b>There may be a killer as well as the infected.</b> If Mira dies before the mystery is solved, the story can continue without revealing who killed anyone. You can leave the school with an unsolved murder.</p>' +
+      '<p><b>The outside world can go silent.</b> When the internet and emergency radio fail, routes and physical survival matter more than messages. Late in a successful escape, a helicopter may drop an evacuation notice leading to a military safe zone.</p>' +
       '<p><b>People are the mechanic.</b> Time spent on somebody is not flavour. It decides who stands aside for you later, and who does not get to.</p>' +
-      '<p><b>Keys.</b> 1\u20139 choose \u00b7 space skips typing and Strikes in a fight \u00b7 arrow keys parry left / front / right \u00b7 down arrow jumps \u00b7 Ctrl heals \u00b7 I bag \u00b7 B bonds \u00b7 Esc menu.</p>' +
+      '<p><b>Keys.</b> 1–9 choose · space skips typing / strikes with a weapon / breaks grabs · left/right arrows dodge zombies or parry while armed · I bag · B bonds · Esc menu.</p>' +
       '<p>If the clock is too fast there is a slower setting in the menu. It costs nothing.</p>' +
       '</div>'
   });
@@ -1071,6 +1350,7 @@ export function openHelp() {
 /** Handle a click on a [data-a] button inside a panel. */
 export function panelAction(a) {
   if (a === 'journal') return openJournal();
+  if (a === 'restore') { closeOverlay(); return restoreCheckpoint(); }
   if (a === 'title') { closeOverlay(); toTitle(); return; }
   if (a === 'mute') { setPref('muted', !store.prefs.muted); return openMenu(); }
   if (a === 'music') { setPref('music', !store.prefs.music); return openMenu(); }
@@ -1080,7 +1360,7 @@ export function panelAction(a) {
 
 export const game = {
   store, on, onTick, go, choose, skip, verb, syncRail, spendEchoOnChoice, spendEchoInFight,
-  combatContinue, openBag, useBagItem, openBonds, openJournal, closeOverlay, openPanel,
+  combatContinue, grabTap, openBag, useBagItem, openBonds, openJournal, closeOverlay, openPanel,
   newGame, beginRun, continueGame, toTitle, bootTitle, refreshSaveInfo,
   openMenu, openHelp, panelAction,
   hasCheckpoint, checkpointLabel, restoreCheckpoint,

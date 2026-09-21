@@ -90,6 +90,10 @@ body{
 .breath-bar{width:140px;height:6px;background:rgba(233,230,220,.12);position:relative}
 .breath-bar i{position:absolute;inset:0 auto 0 0;background:var(--luma);width:0%;transition:width .25s}
 .breath-label{font-family:var(--ui);font-size:12.5px;color:var(--ash);letter-spacing:.1em;min-width:1.4em}
+.resource-strip{display:flex;align-items:center;gap:8px;font-family:var(--ui);font-size:10px;letter-spacing:.08em;color:var(--ash);opacity:.9;white-space:nowrap}
+.resource-strip span{padding:4px 6px;border:1px solid rgba(233,230,220,.10)}
+.resource-strip.critical span{border-color:rgba(197,84,84,.45);color:#d99b9b}
+.combat-resources{display:none}
 .shards{font-family:var(--ui);font-size:13px;color:var(--luma);letter-spacing:.22em;opacity:.85}
 .clarity{font-family:var(--ui);font-size:11px;letter-spacing:.24em;color:var(--gold);opacity:.9}
 .hud-btn{
@@ -137,6 +141,12 @@ body{
 .verbs{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:14px}
 .verb.full{grid-column:1 / -1}
 .parry-group{grid-column:1 / -1;display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px}
+.combat-objective{margin:6px 0 10px;color:var(--luma);font-family:var(--ui);font-size:12px;letter-spacing:.06em;text-align:center}
+.grab-qte{margin-top:14px;padding:14px;border:1px solid var(--ember);background:rgba(150,70,60,.07);text-align:center}
+.grab-qte p{margin:0 0 10px;color:var(--ash);font-family:var(--ui);font-size:12px;letter-spacing:.04em}
+.grab-qte kbd{border:1px solid var(--ash);padding:2px 6px;border-radius:3px;font-family:var(--ui);font-size:10px}
+.grab-count{font-size:30px;letter-spacing:.08em;margin:10px 0 12px;color:var(--luma)}
+.zombie-verbs .parry-group{grid-template-columns:1fr 1fr}
 .verb{
   background:transparent;border:1px solid var(--line);color:var(--bone);cursor:pointer;
   padding:10px 12px;text-align:left;font-family:var(--serif);transition:.18s;
@@ -259,10 +269,12 @@ body{
 
 
 /* ---------- character portraits ---------- */
-.portrait{width:62px;height:62px;margin:2px 0 4px;color:var(--ash);opacity:.75}
+.portrait{width:78px;height:78px;margin:2px 0 8px;color:var(--ash);opacity:.86}
 .portrait:empty{display:none}
 .portrait svg{width:100%;height:100%;display:block}
 .portrait .por{fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.pixel-portrait{width:100%;height:100%;display:block;image-rendering:pixelated}
+.pixel-portrait img{display:block;width:100%;height:100%;object-fit:cover;image-rendering:pixelated;border:1px solid rgba(233,230,220,.12);filter:saturate(.72) contrast(1.02)}
 
 .name-hint{color:var(--ash);font-family:var(--ui);font-size:12px;letter-spacing:.06em;margin:-6px 0 0;opacity:.7}
 .menu-btn[disabled]{opacity:.32;cursor:not-allowed;border-color:var(--line);color:var(--ash)}
@@ -355,3 +367,48 @@ body{
   .rail .item{font-size:14px;padding:6px 9px}
   .prose.beat-quiet{font-size:19px;max-width:none}
 }
+
+@media (max-width:620px){.resource-strip{font-size:9px;gap:4px}.resource-strip span{padding:3px 5px}}
+
+
+/* ---------- illustrated zombie frames ---------- */
+.glimpse.zombie-glimpse{
+  max-width: 430px;
+  min-height: 220px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  overflow:hidden;
+  border:1px solid rgba(233,230,220,.10);
+  background:rgba(0,0,0,.16);
+}
+.zombie-frames{position:relative;width:100%;aspect-ratio:1.78;overflow:hidden}
+.zframe{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  opacity:0;
+  transform:scale(1.02);
+  transition:opacity .10s ease, transform .18s ease;
+  filter:saturate(.78) contrast(1.04);
+}
+.glimpse .zframe-1{opacity:1}
+.glimpse[data-state="idle"] .zframe-1,
+.glimpse[data-state="still"] .zframe-1,
+.glimpse[data-state="open"] .zframe-1{opacity:1}
+.glimpse[data-state="charge"] .zframe-2,
+.glimpse[data-state="lunge"] .zframe-2,
+.glimpse[data-state="brace"] .zframe-2{opacity:1;transform:scale(1.045)}
+.glimpse[data-state="hit"] .zframe-3,
+.glimpse[data-state="recoil"] .zframe-3{opacity:1;transform:scale(1.06)}
+.glimpse[data-state="down"] .zframe-3{opacity:.38;transform:scale(1.10)}
+.glimpse[data-state="hit"] .zframe-1,
+.glimpse[data-state="hit"] .zframe-2,
+.glimpse[data-state="recoil"] .zframe-1,
+.glimpse[data-state="recoil"] .zframe-2,
+.glimpse[data-state="charge"] .zframe-1,
+.glimpse[data-state="charge"] .zframe-3,
+.glimpse[data-state="lunge"] .zframe-1,
+.glimpse[data-state="lunge"] .zframe-3{opacity:0}

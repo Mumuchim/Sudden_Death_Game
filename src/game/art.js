@@ -2,6 +2,64 @@
    Every enemy gets its own silhouette. They all share the same structure
    (aura / mask / shadow) so one set of state animations drives all of them. */
 
+import youImg from '../assets/portraits/you.png';
+import miraImg from '../assets/portraits/mira.png';
+import ayaImg from '../assets/portraits/aya.png';
+import eliImg from '../assets/portraits/eli.png';
+import noahImg from '../assets/portraits/noah.png';
+import reyesImg from '../assets/portraits/reyes.png';
+
+
+const ZOMBIE_FRAMES = {
+  hallway: [
+    new URL('../assets/zombies/hallway_1.jpg', import.meta.url).href,
+    new URL('../assets/zombies/hallway_2.jpg', import.meta.url).href,
+    new URL('../assets/zombies/hallway_3.jpg', import.meta.url).href
+  ],
+  cafeteria: [
+    new URL('../assets/zombies/cafeteria_1.jpg', import.meta.url).href,
+    new URL('../assets/zombies/cafeteria_2.jpg', import.meta.url).href,
+    new URL('../assets/zombies/cafeteria_3.jpg', import.meta.url).href
+  ],
+  stair: [
+    new URL('../assets/zombies/stair_1.jpg', import.meta.url).href,
+    new URL('../assets/zombies/stair_2.jpg', import.meta.url).href,
+    new URL('../assets/zombies/stair_3.jpg', import.meta.url).href
+  ],
+  teacher: [
+    new URL('../assets/zombies/teacher_1.jpg', import.meta.url).href,
+    new URL('../assets/zombies/teacher_2.jpg', import.meta.url).href,
+    new URL('../assets/zombies/teacher_3.jpg', import.meta.url).href
+  ],
+  utility: [
+    new URL('../assets/zombies/utility_1.jpg', import.meta.url).href,
+    new URL('../assets/zombies/utility_2.jpg', import.meta.url).href,
+    new URL('../assets/zombies/utility_3.jpg', import.meta.url).href
+  ],
+  lab: [
+    new URL('../assets/zombies/lab_1.jpg', import.meta.url).href,
+    new URL('../assets/zombies/lab_2.jpg', import.meta.url).href,
+    new URL('../assets/zombies/lab_3.jpg', import.meta.url).href
+  ],
+  outdoor: [
+    new URL('../assets/zombies/outdoor_1.jpg', import.meta.url).href,
+    new URL('../assets/zombies/outdoor_2.jpg', import.meta.url).href,
+    new URL('../assets/zombies/outdoor_3.jpg', import.meta.url).href
+  ]
+};
+
+const zombieFrames = kind => {
+  const f = ZOMBIE_FRAMES[kind] || ZOMBIE_FRAMES.hallway;
+  return '<div class="zombie-frames" aria-hidden="true">' +
+    '<img class="zframe zframe-1" src="' + f[0] + '" alt="" draggable="false">' +
+    '<img class="zframe zframe-2" src="' + f[1] + '" alt="" draggable="false">' +
+    '<img class="zframe zframe-3" src="' + f[2] + '" alt="" draggable="false">' +
+  '</div>';
+};
+
+const pixelPortrait = (src, name) =>
+  '<div class="pixel-portrait"><img src="' + src + '" alt="' + name + ' portrait" draggable="false"></div>';
+
 const wrap = inner => '<svg viewBox="0 0 160 124" preserveAspectRatio="xMidYMid meet">' +
   '<ellipse class="aura" cx="80" cy="58" rx="44" ry="40"/>' +
   '<g class="mask">' + inner + '</g>' +
@@ -14,6 +72,25 @@ export const ENEMY_ART = {
     '<path class="shell" d="M80 20 C58 20 46 38 46 58 c0 23 14 41 34 46 20-5 34-23 34-46 0-20-12-38-34-38z"/>' +
     '<path class="eyes" d="M64 60 h13 M83 60 h13"/>' +
     '<path class="crack" d="M80 26 l-7 26 9 10 -5 22"/>'),
+
+  /* outbreak variants: same inhuman family, different silhouettes for readable encounters */
+  husk_sprinter: wrap(
+    '<path class="horns" d="M56 44 L44 8 L71 34 Z M104 44 L116 8 L89 34 Z"/>' +
+    '<path class="shell" d="M80 16 C62 16 50 34 50 56 c0 25 12 43 30 50 18-7 30-25 30-50 0-22-12-40-30-40z"/>' +
+    '<path class="eyes" d="M62 57 h16 M82 57 h16"/>' +
+    '<path class="crack" d="M73 24 l8 20 -10 18 12 18"/>'),
+
+  husk_bruiser: wrap(
+    '<path class="horns" d="M50 46 L34 18 L68 34 Z M110 46 L126 18 L92 34 Z"/>' +
+    '<path class="shell" d="M80 24 C56 24 40 40 40 62 c0 21 15 37 40 44 25-7 40-23 40-44 0-22-16-38-40-38z"/>' +
+    '<path class="eyes" d="M60 62 h14 M86 62 h14"/>' +
+    '<path class="crack" d="M80 28 v24 l-13 14 15 14"/>'),
+
+  husk_blackout: wrap(
+    '<path class="horns" d="M58 42 L50 6 L73 33 Z M102 42 L110 6 L87 33 Z"/>' +
+    '<path class="shell" d="M80 18 C60 18 48 35 48 58 c0 22 14 40 32 46 18-6 32-24 32-46 0-23-12-40-32-40z"/>' +
+    '<path class="eyes" d="M63 59 h12 M85 59 h12"/>' +
+    '<path class="crack" d="M80 20 l-4 18 8 10 -8 14 7 18"/>'),
 
   /* something long under the water */
   serpent: wrap(
@@ -98,11 +175,12 @@ export const ENEMY_ART = {
 const face = inner => '<svg viewBox="0 0 80 80" preserveAspectRatio="xMidYMid meet"><g class="por">' + inner + '</g></svg>';
 
 export const PORTRAIT = {
-  mira: face(
-    '<path d="M40 12 C26 12 20 24 20 36 c0 16 9 27 20 31 11-4 20-15 20-31 0-12-6-24-20-24z"/>' +
-    '<path d="M30 36 h8 M42 36 h8"/>' +
-    '<path d="M32 50 q8 6 16 0"/>' +
-    '<path d="M40 62 l-6 8 6 6 6-6z"/>'),
+  you: pixelPortrait(youImg, 'You'),
+  mira: pixelPortrait(miraImg, 'Mira'),
+  aya: pixelPortrait(ayaImg, 'Aya'),
+  eli: pixelPortrait(eliImg, 'Eli'),
+  noah: pixelPortrait(noahImg, 'Noah'),
+  reyes: pixelPortrait(reyesImg, 'Ms. Reyes'),
   ally: face(
     '<path d="M40 14 C28 14 22 25 22 36 c0 15 8 25 18 29 10-4 18-14 18-29 0-11-6-22-18-22z"/>' +
     '<path d="M31 35 h7 M42 35 h7"/>' +
@@ -160,9 +238,12 @@ export const PORTRAIT = {
   deep: face(
     '<circle cx="40" cy="40" r="26" opacity=".35"/>' +
     '<circle cx="40" cy="40" r="17" opacity=".6"/>' +
-    '<circle cx="40" cy="40" r="7"/>'),
-  you: face(
-    '<path d="M40 12 C27 12 21 25 21 38 c0 16 8 27 19 31 11-4 19-15 19-31 0-13-6-26-19-26z"/>' +
-    '<path d="M29 37 h9 M43 37 h9"/>' +
-    '<path d="M40 18 L30 4 L52 16 Z"/>')
+    '<circle cx="40" cy="40" r="7"/>')
 };
+
+
+/* Large illustrated zombie encounters. The combat engine supplies the state
+   (idle/charge/lunge/hit/recoil/down); CSS swaps the appropriate POV frame. */
+export const ZOMBIE_ART = Object.fromEntries(
+  Object.keys(ZOMBIE_FRAMES).map(k => [k, zombieFrames(k)])
+);

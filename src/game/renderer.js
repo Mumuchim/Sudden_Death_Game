@@ -61,6 +61,7 @@ function paint() {
     $('fight-log').innerHTML = c.log;
     var gl = $('glimpse');
     if (gl.dataset.art !== c.art) { gl.dataset.art = c.art; gl.innerHTML = c.art; }
+    gl.classList.toggle('zombie-glimpse', c.mode === 'zombie');
     gl.dataset.state = c.glimpse;
     $('clarity-pip').hidden = !c.clarity;
     $('timer-wrap').hidden = !c.timerOn;

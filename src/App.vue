@@ -3,7 +3,6 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { game, store, on, onTick } from './game/core.js'
 import { motes } from './game/motes.js'
 import './game/story_school.js'
-import './game/story_below.js'
 import './game/story_endings.js'
 
 /* The core is a plain object that mutates itself and announces it.
@@ -36,6 +35,11 @@ const statuses = computed(() => (tick.value, (store.combat.statuses || []).slice
 const hasSave = computed(() => (tick.value, store.hasSave))
 const saveLabel = computed(() => (tick.value, store.saveLabel))
 const typing = computed(() => (tick.value, store.typing))
+const resources = computed(() => (tick.value, { food: store.state ? store.state.food : 0, water: store.state ? store.state.water : 0 }))
+const weaponVerb = computed(() => {
+  const id = combat.value.weapon
+  return ({ bat: 'Bonk', knife: 'Slash', extinguisher: 'Smash' })[id] || 'Strike'
+})
 
 const emberPips = computed(() => {
   const h = hud.value
@@ -84,7 +88,9 @@ function onKey (e) {
       e.preventDefault()
       if (store.screen === 'combat') {
         if (store.combat.continueLabel) return game.combatContinue()
-        if (store.combat.verbsOn) return game.verb('strike')
+        if (store.combat.grabActive) { if (!e.repeat) game.grabTap(); return }
+        if (store.combat.mode === 'zombie' && store.combat.weapon && store.combat.verbsOn) return game.verb('bonk')
+        if (store.combat.verbsOn && store.combat.mode !== 'zombie') return game.verb('strike')
         return
       }
       const cont = store.choices.findIndex(c => c.cont)
@@ -93,6 +99,17 @@ function onKey (e) {
     return
   }
   if (store.screen === 'combat') {
+    if (store.combat.grabActive) {
+      if (k === ' ' && !e.repeat) { e.preventDefault(); game.grabTap(); }
+      return
+    }
+    if (store.combat.mode === 'zombie') {
+      if (k === 'arrowleft') { e.preventDefault(); game.verb(store.combat.weapon ? 'parry' : 'dodge', 'left'); return }
+      if (k === 'arrowright') { e.preventDefault(); game.verb(store.combat.weapon ? 'parry' : 'dodge', 'right'); return }
+      if (k === ' ' && store.combat.weapon && store.combat.verbsOn && !e.repeat) { e.preventDefault(); game.verb('bonk'); return }
+      if (k === 'i' && store.state) return game.openBag()
+      return
+    }
     if (k === 'arrowleft') { e.preventDefault(); game.verb('parry', 'left'); return }
     if (k === 'arrowup') { e.preventDefault(); game.verb('parry', 'front'); return }
     if (k === 'arrowright') { e.preventDefault(); game.verb('parry', 'right'); return }
@@ -159,7 +176,7 @@ onUnmounted(() => {
         <button class="menu-btn quiet" @click="game.sfx.click(); game.openJournal()">Endings found</button>
         <button class="menu-btn quiet" @click="game.sfx.click(); game.openHelp()">How to play</button>
       </div>
-      <p class="warn">Contains stalking, obsession, suicide and violence between teenagers.</p>
+      <p class="warn">Contains infection, violence, death, stalking and obsessive behavior.</p>
     </div>
   </section>
 
@@ -186,6 +203,10 @@ onUnmounted(() => {
         <div v-if="hud.below" class="breath-wrap">
           <div class="breath-bar"><i :style="{ width: breathPct }"></i></div>
           <span class="breath-label">{{ hud.breath }}</span>
+        </div>
+        <div v-if="screen === 'story'" class="resource-strip" :class="{ critical: resources.food === 0 || resources.water === 0 }">
+          <span title="food">food {{ resources.food }}</span>
+          <span title="water">water {{ resources.water }}</span>
         </div>
       </div>
       <div class="hud-right">
@@ -231,6 +252,10 @@ onUnmounted(() => {
           <div class="breath-bar"><i :style="{ width: breathPct }"></i></div>
           <span class="breath-label">{{ hud.breath }}</span>
         </div>
+        <div class="resource-strip combat-resources">
+          <span>food {{ resources.food }}</span>
+          <span>water {{ resources.water }}</span>
+        </div>
       </div>
       <div class="hud-right">
         <span v-if="combat.clarity" class="clarity">clear</span>
@@ -240,11 +265,12 @@ onUnmounted(() => {
     </header>
     <main id="arena">
       <p class="foe-name">{{ combat.name }}</p>
-      <div class="poise">
+      <p v-if="combat.objective" class="combat-objective">{{ combat.objective }}</p>
+      <div v-if="combat.poiseMax" class="poise">
         <i v-for="(alive, i) in poisePips" :key="i" :class="{ gone: !alive }"></i>
       </div>
 
-      <div class="glimpse" :data-state="combat.glimpse" :data-dir="combat.dir || ''" aria-hidden="true" v-html="combat.art"></div>
+      <div class="glimpse" :class="{ 'zombie-glimpse': combat.mode === 'zombie' }" :data-state="combat.glimpse" :data-dir="combat.dir || ''" aria-hidden="true" v-html="combat.art"></div>
 
       <div v-show="combat.timerOn" class="timer-wrap" :class="{ danger: combat.danger }">
         <i :style="{ width: (timerFrac * 100) + '%' }"></i>
@@ -258,7 +284,43 @@ onUnmounted(() => {
         </span>
       </div>
 
-      <div class="verbs">
+      <div v-if="combat.mode === 'zombie' && combat.grabActive" class="grab-qte">
+        <p><b>BREAK FREE</b> — press <kbd>SPACE</kbd> {{ combat.grabGoal }} times.</p>
+        <div class="grab-count">{{ combat.grabCount }} / {{ combat.grabGoal }}</div>
+        <button class="verb full" @click="game.grabTap()">
+          <b>TAP SPACE</b><small>Keep tapping until you break free.</small>
+        </button>
+      </div>
+
+      <div v-else-if="combat.mode === 'zombie'" class="verbs zombie-verbs">
+        <template v-if="combat.weapon">
+          <button class="verb full" :class="{ locked: !combat.verbsOn || !combat.weaponOpening }"
+                  :disabled="!combat.verbsOn || !combat.weaponOpening"
+                  @click="game.verb('bonk')">
+            <b>{{ weaponVerb }}</b><small>space · strike only after a successful parry</small>
+          </button>
+          <div class="parry-group">
+            <button class="verb" :disabled="!combat.verbsOn" @click="game.verb('parry', 'left')">
+              <b>◄ Parry</b><small>left side</small>
+            </button>
+            <button class="verb" :disabled="!combat.verbsOn" @click="game.verb('parry', 'right')">
+              <b>► Parry</b><small>right side</small>
+            </button>
+          </div>
+        </template>
+        <template v-else>
+          <div class="parry-group">
+            <button class="verb" :disabled="!combat.verbsOn" @click="game.verb('dodge', 'left')">
+              <b>◄ Dodge left</b><small>move away from a right-side attack</small>
+            </button>
+            <button class="verb" :disabled="!combat.verbsOn" @click="game.verb('dodge', 'right')">
+              <b>Dodge right ►</b><small>move away from a left-side attack</small>
+            </button>
+          </div>
+        </template>
+      </div>
+
+      <div v-else class="verbs">
         <button class="verb full" :class="{ locked: !verbOpen('strike') }"
                 :disabled="!combat.verbsOn || !verbOpen('strike')"
                 @click="game.verb('strike')">
